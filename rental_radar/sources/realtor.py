@@ -7,7 +7,7 @@ import logging
 import re
 import time
 
-from homeharvest import scrape_property
+from . import Incomplete
 
 log = logging.getLogger("radar")
 
@@ -117,13 +117,16 @@ def _parse(p, cfg) -> dict | None:
 
 
 def search(cfg, conn=None) -> list[dict]:
+    from homeharvest import scrape_property  # imported here: it pulls in pandas, slow for every command
     out: dict[str, dict] = {}
+    failed = []
     for city in cfg["search"]["cities"]:
         try:
             props = scrape_property(location=f"{city}, {cfg['search']['state']}", listing_type="for_rent", return_type="pydantic",
                                     beds_min=cfg["size"]["min_beds"], price_max=cfg["budget"]["hard_max"])
         except Exception as e:
             log.warning("realtor %s failed: %s", city, e)
+            failed.append(city)
             continue
         for p in props:
             try:
@@ -134,6 +137,10 @@ def search(cfg, conn=None) -> list[dict]:
             if rec and rec["lat"] is not None:
                 out[rec["uid"]] = rec
         time.sleep(3)
+    if failed and len(failed) == len(cfg["search"]["cities"]):
+        raise RuntimeError(f"every city search failed ({', '.join(failed[:3])}...)")
+    if failed:
+        return Incomplete(out.values(), None, f"city searches failed: {', '.join(failed)}")
     return list(out.values())
 
 

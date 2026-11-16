@@ -3,7 +3,9 @@
 # Neighborhood scores (1-10) are one household's judgment blend of safety, family-friendliness,
 # walkability/amenities and day-to-day livability, made in late 2026. They are approximate and
 # opinionated: re-rate them for your own priorities, and verify specific blocks with crime maps
-# and a video walk-through. Commute is scored per listing, so notes here don't mention it.
+# and a video walk-through. They rate fit for one family's search, not the people who live there;
+# notes about crime summarize public city statistics from that time, vary block by block, and go
+# out of date. Commute is scored per listing, so notes here don't mention it.
 
 default_score: 5.5
 
@@ -106,7 +108,7 @@ neighborhoods:
      cons: "Higher crime rates"}
   - {name: "East Oakland flats", lat: 37.755, lon: -122.185, radius_km: 2.0, score: 3.5,
      pros: "Cheaper",
-     cons: "Highest violent-crime areas of Oakland"}
+     cons: "Higher violent-crime rates than most of Oakland in city data (varies by block)"}
   - {name: "Emeryville", lat: 37.836, lon: -122.29, radius_km: 1.0, score: 6.5,
      pros: "Central, shopping, free Emery Go-Round shuttle",
      cons: "Mostly apartment complexes; property crime; few yards"}

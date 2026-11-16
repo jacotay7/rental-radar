@@ -34,10 +34,10 @@ def _city_from_coords(lat, lon) -> str | None:
     return None
 
 
-def _osm(addr: str):
+def _osm(addr: str, base: str = "https://nominatim.openstreetmap.org"):
     """OpenStreetMap Nominatim lookup requiring an exact house-number match (max 1 request/second)."""
     try:
-        r = http.get("https://nominatim.openstreetmap.org/search",
+        r = http.get(base.rstrip("/") + "/search",
                      params={"q": addr, "format": "json", "limit": 1, "addressdetails": 1, "countrycodes": "us"},
                      headers={"User-Agent": http.TOOL_UA}, min_interval=1.1)
         res = r.json()
@@ -63,13 +63,13 @@ def full_address(d, state: str) -> str | None:
     return f"{street}, {city}, {state}" if city else None
 
 
-def check(conn, d, state: str) -> dict:
+def check(conn, d, state: str, nominatim_url: str = "https://nominatim.openstreetmap.org") -> dict:
     addr = full_address(d, state)
     if not addr:
         return {"status": "no_address"}
     lat, lon = geo.geocode(conn, addr)
     if lat is None:
-        lat, lon = _osm(addr)  # second opinion; Census misses some new/unusual addresses
+        lat, lon = _osm(addr, nominatim_url)  # second opinion; Census misses some new/unusual addresses
     if lat is None:
         return {"status": "not_found", "address": addr}
     dist = geo.km(lat, lon, d["lat"], d["lon"])
@@ -115,16 +115,15 @@ def verify_all(conn, cfg, min_score: float) -> int:
         before = json.dumps(d, sort_keys=True)
         if "address_check" not in d:
             if d["source"] in CHECK_SOURCES:
-                d["address_check"] = check(conn, d, state)
+                d["address_check"] = check(conn, d, state, cfg["services"]["nominatim_url"])
             elif d["source"] in GEOCODED_SOURCES:
                 d["address_check"] = {"status": "ok", "address": d.get("address")}
         ac = d.get("address_check") or {}
         pc = d.get("property_check")
-        if d["source"] != "realtor" and ac.get("status") == "ok" and ac.get("address") \
-                and (pc is None or "estimated_value" not in pc):
-            rec = property_record(ac["address"])
+        if d["source"] != "realtor" and ac.get("status") == "ok" and ac.get("address") and pc is None:
+            rec = property_record(ac["address"])    # None = lookup failed (retried next run)
             if rec:
-                d["property_check"] = rec
+                d["property_check"] = rec           # including {"status": "unknown"}: don't ask again
         sm = sales.match(conn, dict(d, address=ac.get("address") or d.get("address")), text_index)
         if sm:
             d["sale_match"] = sm
@@ -141,7 +140,7 @@ def check_links(conn, cfg, limit=40) -> int:
     """Re-open the original posting on DIY-landlord sites for emailed and near-email listings. A posting taken
     down within days of going up is a fraud signal: platforms pull reported scams quickly."""
     rows = conn.execute(
-        "SELECT uid, data FROM listings WHERE status IN ('active','interested') AND dup_of IS NULL AND detail_fetched=1 "
+        "SELECT uid, data FROM listings WHERE status='active' AND mark IS NOT 'rejected' AND dup_of IS NULL AND detail_fetched=1 "
         "AND (emailed_at IS NOT NULL OR score>=?) ORDER BY score DESC",
         (cfg["scoring"]["email_threshold"] - 10,)).fetchall()
     n = 0

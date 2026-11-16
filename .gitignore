@@ -13,3 +13,6 @@ __pycache__/
 .pytest_cache/
 dist/
 build/
+.coverage
+htmlcov/
+.ruff_cache/

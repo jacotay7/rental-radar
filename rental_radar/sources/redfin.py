@@ -93,17 +93,21 @@ def fetch_detail(listing: dict, cfg) -> dict:
     """Unit-level pricing for multi-unit buildings + amenity lists."""
     out = dict(listing)
     rid = listing["source_id"]
+    r = http.get(f"https://www.redfin.com/stingray/api/v1/rentals/{rid}/amenities", min_interval=1.0)
+    if r.status_code in (403, 429) or r.status_code >= 500:
+        raise RuntimeError(f"HTTP {r.status_code} from Redfin (blocked or rate-limited?)")
     try:
-        r = http.get(f"https://www.redfin.com/stingray/api/v1/rentals/{rid}/amenities", min_interval=1.0)
         if r.ok:
             a = r.json()
             out["amenities"] = sorted(set(a.get("unitAmenities", []) + a.get("communityAmenities", [])
                                           + a.get("standardizedAmenities", []) + a.get("otherAmenities", [])))
-    except Exception:
-        pass
+    except (ValueError, TypeError, AttributeError):
+        pass                      # no amenity data for this rental: not an error
     if (listing.get("units_available") or 1) > 1 or (listing.get("beds_min") != listing.get("beds")):
+        r = http.get(f"https://www.redfin.com/stingray/api/v1/rentals/{rid}/floorPlans", min_interval=1.0)
+        if r.status_code in (403, 429) or r.status_code >= 500:
+            raise RuntimeError(f"HTTP {r.status_code} from Redfin (blocked or rate-limited?)")
         try:
-            r = http.get(f"https://www.redfin.com/stingray/api/v1/rentals/{rid}/floorPlans", min_interval=1.0)
             units = [u for grp in r.json().get("unitTypesByBedroom", [])
                      for ut in grp.get("availableUnitTypes", []) for u in ut.get("units", [])]
             ok = [u for u in units if (u.get("bedrooms") or 0) >= cfg["size"]["min_beds"]
@@ -117,6 +121,6 @@ def fetch_detail(listing: dict, cfg) -> dict:
                            unit_name=u.get("name"), matching_units=len(ok))
             else:
                 out["no_matching_unit"] = True
-        except Exception:
-            pass
+        except (ValueError, TypeError, AttributeError, KeyError):
+            pass                  # unexpected floor-plan shape: keep the search-level data
     return out

@@ -90,9 +90,10 @@ def card_html(row, d, a, cfg, top_pick) -> str:
     flags = ""
     if a.get("pet_flags"):
         flags = f"<p style='margin:4px 0'><b>Pet policy notes:</b> {_e('; '.join(a['pet_flags']))}</p>"
+    tag = "⭐ TOP PICK · " if top_pick else ""
     return f"""
 <div style="border:1px solid #ddd;border-radius:8px;padding:14px;margin:14px 0;font-family:Arial,sans-serif">
-  <div style="font-size:13px;color:#666">{'⭐ TOP PICK · ' if top_pick else ''}{_e(d['source'].title())} · {_e(d.get('housing_type') or '')}</div>
+  <div style="font-size:13px;color:#666">{tag}{_e(d['source'].title())} · {_e(d.get('housing_type') or '')}</div>
   <div style="font-size:18px;font-weight:bold;margin:4px 0">
     <span style="background:{badge_color};color:#fff;border-radius:4px;padding:2px 8px;margin-right:6px">{row['score']:.0f}</span>
     <a href="{_e(d['url'])}">{_e(headline(d, a))}</a>
@@ -195,7 +196,7 @@ def build_email(items, cfg, subject_prefix: str = "", intro: str = "", kind: str
     subject = subject_line(items, cfg, kind, top, warnings, subject_prefix)
     cards = "".join(card_html(r, d, a, cfg, r["score"] >= top_t) for r, d, a in items)
     tip_html = "".join(f"<li>{_e(t)}</li>" for t in tips(cfg))
-    new_html = (f"""<h2 style="font-size:18px;margin:16px 0 4px">New since the last digest</h2>""" if top else "") + (
+    new_html = ("""<h2 style="font-size:18px;margin:16px 0 4px">New since the last digest</h2>""" if top else "") + (
         f"""<p style="font-size:14px">{n} new listing{'s' if n > 1 else ''} scored ≥ {cfg['scoring']['email_threshold']}
 ({_e(_criteria(cfg))}).</p>"""
         if items else '<p style="font-size:14px">No new listings scored above the threshold since the last digest.</p>')

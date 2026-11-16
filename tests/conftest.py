@@ -49,3 +49,14 @@ def listing(**kw):
             "body": "", "dogs_ok": True, "contact": {}}
     base.update(kw)
     return base
+
+
+@pytest.fixture(autouse=True)
+def no_network(monkeypatch):
+    """Tests are offline. Anything that reaches for a real socket fails instead of quietly hitting a site."""
+    import socket
+
+    def blocked(*a, **k):
+        raise AssertionError("a test tried to open a network connection; monkeypatch the call instead")
+
+    monkeypatch.setattr(socket.socket, "connect", blocked)

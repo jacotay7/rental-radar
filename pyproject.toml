@@ -1,6 +1,6 @@
 [project]
 name = "rental-radar"
-version = "0.2.0"
+version = "0.3.0"
 description = "Self-hosted rental search: collects listings from many sources, scores them against your priorities, screens out scams, and emails you the best ones."
 readme = "README.md"
 license = {text = "MIT"}
@@ -13,10 +13,17 @@ classifiers = [
     "Operating System :: MacOS",
     "Topic :: Utilities",
 ]
-dependencies = ["requests>=2.31", "pyyaml>=6.0", "homeharvest>=0.8"]
+# homeharvest wraps an unofficial API and changes often: allow patch releases only, and bump on purpose.
+dependencies = ["requests>=2.31,<3", "pyyaml>=6.0,<7", "homeharvest>=0.8.18,<0.9"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.6"]
+
+[project.urls]
+Homepage = "https://github.com/jacotay7/rental-radar"
+Documentation = "https://github.com/jacotay7/rental-radar/tree/main/docs"
+Changelog = "https://github.com/jacotay7/rental-radar/blob/main/CHANGELOG.md"
+Issues = "https://github.com/jacotay7/rental-radar/issues"
 
 [project.scripts]
 radar = "rental_radar.cli:main"
@@ -35,3 +42,14 @@ packages = ["rental_radar"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 130
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "I", "UP"]
+ignore = ["B905"]          # zip() without strict=: lengths are equal by construction here
+
+[tool.coverage.run]
+source = ["rental_radar"]

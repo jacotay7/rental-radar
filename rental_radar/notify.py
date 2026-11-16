@@ -135,7 +135,7 @@ def retraction_blocks(items, f: Fmt) -> list[str]:
     blocks = [f.bold("⚠ SCAM WARNING: listings we sent you earlier now look like scams. Don't send money, an "
                      "application fee or ID. If you already did, call your bank and report it at "
                      "reportfraud.ftc.gov.")]
-    for r, d, a in items:
+    for _, d, a in items:
         why = (a.get("scam_flags") or []) + (a.get("caution_flags") or [])
         blocks.append("\n".join([f.link(emailer.headline(d, a), d["url"]), f.esc(d.get("address") or "")]
                                 + [f"− {f.esc(w)}" for w in why]))
@@ -163,7 +163,11 @@ def pack(blocks: list[str], limit: int) -> list[str]:
 # ---------------------------------------------------------------- senders
 
 def _post(url, **kw):
-    r = requests.post(url, timeout=30, headers={"User-Agent": http.TOOL_UA, **kw.pop("headers", {})}, **kw)
+    try:
+        r = requests.post(url, timeout=30, headers={"User-Agent": http.TOOL_UA, **kw.pop("headers", {})}, **kw)
+    except requests.RequestException as e:
+        # requests puts the full URL (which contains the webhook secret / bot token) in its error text
+        raise RuntimeError(f"could not reach {urlsplit(url).hostname} ({type(e).__name__})") from None
     if r.status_code >= 300:
         # The URL holds the secret, so report only the status and the service's own error text.
         raise RuntimeError(f"HTTP {r.status_code}: {r.text[:200]}")

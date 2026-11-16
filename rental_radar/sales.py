@@ -9,7 +9,7 @@ description text. See docs/scam-detection.md.
 import logging
 import re
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from . import db, geo
 
@@ -51,7 +51,7 @@ def _val(v):
 def refresh(conn, cities, state, force=False) -> int:
     """Pull current for-sale/pending and recently sold listings into sale_listings (about once a day)."""
     last = conn.execute("SELECT value FROM meta WHERE key='sales_refreshed'").fetchone()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if last and not force and now - datetime.fromisoformat(last["value"]) < timedelta(hours=REFRESH_HOURS):
         return 0
     from homeharvest import scrape_property
@@ -66,7 +66,8 @@ def refresh(conn, cities, state, force=False) -> int:
                 log.warning("sale index %s %s failed: %s", city, kind, e)
                 continue
             for _, r in df.iterrows():
-                addr = f"{_val(r.get('full_street_line')) or ''}, {_val(r.get('city')) or ''}, {state} {_val(r.get('zip_code')) or ''}"
+                street, city, zipc = (_val(r.get(k)) or "" for k in ("full_street_line", "city", "zip_code"))
+                addr = f"{street}, {city}, {state} {zipc}"
                 key = street_key(addr)
                 if not key or _val(r.get("property_id")) is None:
                     continue
@@ -97,7 +98,7 @@ class TextIndex:
     Only shingles that occur in `rental_texts` are kept, which keeps memory small."""
 
     def __init__(self, conn, rental_texts, days=400):
-        since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        since = (datetime.now(UTC) - timedelta(days=days)).isoformat()
         wanted = set().union(*(_shingles(t) for t in rental_texts)) if rental_texts else set()
         self.rows = {}
         self.index: dict[int, set] = defaultdict(set)

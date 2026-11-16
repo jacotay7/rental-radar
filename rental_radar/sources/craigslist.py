@@ -5,7 +5,7 @@ code near the center of your search, and `distance_mi`.
 """
 import html
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from .. import http
 
@@ -90,7 +90,7 @@ def _parse_item(item, decode, cfg):
         "sqft": sqft,
         "lat": lat,
         "lon": lon,
-        "posted_at": datetime.fromtimestamp(posted, timezone.utc).isoformat(),
+        "posted_at": datetime.fromtimestamp(posted, UTC).isoformat(),
         "photos": images[:6],
         "dogs_ok": bool(cfg["pets"].get("dog")),  # the search filtered on pets_dog=1
         "contact": {},
@@ -136,6 +136,8 @@ def fetch_detail(listing: dict, cfg=None) -> dict | None:
     if resp.status_code in (404, 410) or "This posting has been deleted" in resp.text \
             or "This posting has expired" in resp.text:
         return None
+    if resp.status_code != 200:
+        raise RuntimeError(f"HTTP {resp.status_code} for a posting page (blocked or rate-limited?)")
     s = resp.text
     out = dict(listing)
     m = re.search(r'<section id="postingbody">(.*?)</section>', s, re.S)
@@ -166,7 +168,7 @@ def fetch_detail(listing: dict, cfg=None) -> dict | None:
     phones = re.findall(r"\(?\b\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}\b", body)
     if phones:
         contact["phone"] = phones[0]
-    emails = re.findall(r"[\w.+-]+@[\w-]+\.[\w.]+", body)
+    emails = re.findall(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", body)
     if emails:
         contact["email"] = emails[0]
     links = re.findall(r"https?://[^\s<>\"]+", body)

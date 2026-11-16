@@ -9,7 +9,7 @@ UA = (
 )
 # Identifies the tool to services whose usage policies ask for it (OpenStreetMap Nominatim).
 # Never put personal details (names, email addresses) here.
-TOOL_UA = "rental-radar/0.2 (self-hosted, low-volume personal rental search)"
+TOOL_UA = "rental-radar/0.3 (self-hosted, low-volume personal rental search)"
 
 _session = requests.Session()
 _session.headers.update({"User-Agent": UA, "Accept-Language": "en-US,en;q=0.9"})

@@ -4,6 +4,7 @@ import json
 import logging
 import math
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -13,8 +14,15 @@ from pathlib import Path
 from string import Template
 
 from . import __version__, db, emailer, geo, notify, pipeline, templates
-from .config import (EXAMPLES_DIR, chat_secrets_hint, config_path, imap_credentials, load_config,
-                     smtp_credentials, validate)
+from .config import (
+    EXAMPLES_DIR,
+    chat_secrets_hint,
+    config_path,
+    imap_credentials,
+    load_config,
+    smtp_credentials,
+    validate,
+)
 
 log = logging.getLogger("radar")
 
@@ -131,6 +139,8 @@ def cmd_init(args):
         if near:
             far = " (far from your destination; check it)" if near["km"] > 120 else ""
             print(f"  Nearest Craigslist site: {near['site']} ({near['name']}, {near['km']:.0f} km away){far}")
+        print("  Note: Craigslist's terms of use restrict automated access. Enabling it is your call; leave it\n"
+              "  blank to skip (see \"Responsible use\" in the README).")
     cl_site = args.craigslist_site if args.craigslist_site is not None else _ask(
         "Craigslist site subdomain (blank = skip Craigslist)", (near or {}).get("site", ""), y)
     cl_postal = (match or {}).get("zip")
@@ -163,7 +173,7 @@ def cmd_init(args):
           "     your SMTP login for email (Gmail: create an app password). See docs/notifications.md.\n"
           "  2. Rate your neighborhoods in areas.yaml (docs/regions.md), the biggest lever on quality.\n"
           "  3. radar doctor              # check everything\n"
-          "  4. radar run --no-email      # first collection, writes data/preview.html\n"
+          "  4. radar run --dry-run       # first collection, writes data/preview.html\n"
           "  5. radar test-notify         # check that messages reach you\n"
           "  6. radar schedule install    # hourly top picks + daily digest")
 
@@ -198,6 +208,8 @@ def cmd_doctor(args):
     line("ok", f"config: {cfg['_path']}")
     for err in validate(cfg):
         line("FAIL", err)
+    for key in cfg.get("_unknown") or []:
+        line("warn", f"config: unknown setting `{key}` is ignored (typo? see docs/configuration.md)")
     b, d = cfg["search"]["bbox"], cfg["destination"]
     if b and d.get("lat") is not None and not (b["south"] <= d["lat"] <= b["north"] and b["west"] <= d["lon"] <= b["east"]):
         line("warn", "destination is outside search.bbox (fine if intended)")
@@ -296,7 +308,7 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 WorkingDirectory={workdir}
-ExecStart={python} -m rental_radar --config {config} {cmd}
+ExecStart="{python}" -m rental_radar --config "{config}" {cmd}
 TimeoutStartSec={timeout}
 """
 UNIT_TIMER = """[Unit]
@@ -329,8 +341,8 @@ def cmd_schedule(args):
     unit_dir = Path.home() / ".config/systemd/user"
     units = _units(cfg)
     if args.action == "cron":
-        py, conf = sys.executable, cfg["_path"]
-        log_file = Path(cfg["_data_dir"]) / "cron.log"
+        py, conf = shlex.quote(sys.executable), shlex.quote(cfg["_path"])
+        log_file = shlex.quote(str(Path(cfg["_data_dir"]) / "cron.log"))
         tz = cfg["schedule"].get("timezone")
         print("# Add with `crontab -e`. Adjust the times to match schedule.collect / schedule.digest.")
         if tz:
@@ -379,8 +391,9 @@ def cmd_run(args):
 def cmd_rescore(args):
     cfg = load_config(args.config)
     conn = _conn(cfg)
-    pipeline.score_all(conn, cfg)
-    pipeline.scam_checks(conn, cfg)
+    with pipeline.run_lock(cfg):
+        pipeline.score_all(conn, cfg)
+        pipeline.scam_checks(conn, cfg)
     n = len(pipeline.pending(conn, cfg))
     print(f"Rescored. {n} unemailed listings at/above threshold {cfg['scoring']['email_threshold']}.")
 
@@ -395,7 +408,7 @@ def cmd_top(args):
         d, a = json.loads(r["data"]), json.loads(r["analysis"])
         c = a["commute"]
         tr = c["transit"]["minutes"] if c.get("transit") else "-"
-        flag = "E" if r["emailed_at"] else " "
+        flag = ("E" if r["emailed_at"] else " ") + {"interested": "♥", "rejected": "✗"}.get(r["mark"], " ")
         print(f"{r['score']:5.1f} {flag} ${d.get('price') or 0:>5,} {d.get('beds') if d.get('beds') is not None else '?'}bd "
               f"{(d.get('sqft') or 0):>5}sf drv{c['drive']:>3} trn{tr!s:>3} "
               f"{a['neighborhood']['name'][:28]:28} {(d.get('housing_type') or '')[:10]:10} {r['uid']}")
@@ -443,13 +456,15 @@ def cmd_baseline(args):
 def cmd_mark(args):
     cfg = load_config(args.config)
     conn = _conn(cfg)
-    cur = conn.execute("UPDATE listings SET status=? WHERE uid=?", (args.status, args.uid))
+    mark = None if args.status in ("none", "active") else args.status
+    cur = conn.execute("UPDATE listings SET mark=? WHERE uid=?", (mark, args.uid))
     conn.commit()
     print("Updated." if cur.rowcount else f"not found: {args.uid}")
 
 
 def cmd_demo(args):
     import tempfile
+
     from . import demo
     out = Path(args.out) if args.out else Path(tempfile.gettempdir()) / "rental-radar-demo.html"
     demo.run(out, open_browser=not args.no_open, chat=args.chat)
@@ -527,9 +542,10 @@ def build_parser() -> argparse.ArgumentParser:
     pv.add_argument("--subject-prefix", default="")
     pv.add_argument("--intro", default="", help="note shown at the top of the email")
 
-    m = sub.add_parser("mark", help="mark a listing interested / rejected / active")
+    m = sub.add_parser("mark", help="mark a listing interested / rejected, or clear the mark")
     m.add_argument("uid")
-    m.add_argument("status", choices=["interested", "rejected", "active"])
+    m.add_argument("status", choices=["interested", "rejected", "none", "active"],
+                   help="rejected listings are never sent again; `none` clears the mark (`active` is an alias)")
 
     sub.add_parser("test-notify", aliases=["test-email"],
                    help="send a test message to every channel (email, Discord, Slack, ntfy, Telegram)")

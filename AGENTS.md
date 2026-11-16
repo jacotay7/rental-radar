@@ -14,7 +14,7 @@ from this code. Start with [README.md](README.md), then [docs/architecture.md](d
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # or: uv venv && uv pip install -e ".[dev]"
-.venv/bin/pytest -q                       # offline test suite; run before and after every change
+.venv/bin/pytest -q && .venv/bin/ruff check .   # offline tests + lint; run before and after every change
 .venv/bin/radar --config <dir>/config.yaml doctor --offline
 .venv/bin/radar demo --no-open --chat      # offline sample output, no config needed
 .venv/bin/radar --config <dir>/config.yaml run --dry-run --detail-limit 20   # live, but sends nothing
@@ -26,7 +26,9 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # or: uv venv && uv
 | Path | What |
 |---|---|
 | `rental_radar/pipeline.py` | run cycle: collect → score → scam checks → retractions → notify; source health |
-| `rental_radar/analyze.py` | **the scoring model** and pros/cons; scam heuristics (`scam_check`, `hijack_signals`, `verify_flags`) |
+| `rental_radar/analyze.py` | **the scoring model** and pros/cons |
+| `rental_radar/scam.py` | scam heuristics (`scam_check`, `hijack_signals`, `verify_flags`) |
+| `rental_radar/db.py` | SQLite schema, `SCHEMA_VERSION` and migrations |
 | `rental_radar/config.py` | `DEFAULTS` (every config key and its default), `finalize`, `validate` |
 | `rental_radar/geo.py` | geocoding, neighborhoods, OSRM drive time, transit, bike |
 | `rental_radar/sales.py`, `verify.py` | sale-history index, copied-text detection, address and property checks |
@@ -79,8 +81,13 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # or: uv venv && uv
   `docs/scam-detection.md`; to sources, `docs/sources.md` and the README table; to config keys,
   `docs/configuration.md`.
 - Add a line under `## [Unreleased]` in `CHANGELOG.md` for every user-visible change.
-- Add or adjust a test for every behavior change. Tests must stay offline: monkeypatch
-  `geo.drive_minutes` and use fixtures.
+- Add or adjust a test for every behavior change. Tests must stay offline (`conftest.py` blocks
+  sockets, so a stray network call fails the test): monkeypatch `geo.drive_minutes`, `http.get` and
+  `homeharvest`, and use small synthetic samples like those in `tests/test_sources.py`.
+- `ruff check .` must pass; CI runs it, plus the tests with a 70% coverage floor.
+- Schema changes need a migration in `db.MIGRATIONS` and a bumped `SCHEMA_VERSION`.
+- Secrets never go in logs or error messages. Webhook URLs contain their tokens, so report the host
+  only (see `notify._post`).
 
 ## Playbooks
 

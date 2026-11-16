@@ -13,14 +13,14 @@ The code is in [`analyze.py`](../rental_radar/analyze.py) (`scam_check`, `hijack
 
 **1. The fake street number.** A Craigslist post offered a 3-bedroom house in a desirable
 neighborhood. The description was copied word for word from the *sale* listing of a nearby home that
-had just sold for about $1.45M. The scammer had changed the street number: "3916 Elm" instead of
-"916 Elm". The map pin was roughly right, and nothing looked off until someone dropped into Street
+had just sold for well over a million dollars. The scammer had changed the street number: "4127 Elm"
+instead of "127 Elm". The map pin was roughly right, and nothing looked off until someone dropped into Street
 View and found no such house.
 → Led to the **address-existence check** and **copied-description detection**.
 
-**2. The hijacked for-sale listing.** A $3,000/month, 1,900 sq ft house with "all utilities
+**2. The hijacked for-sale listing.** A large house at about half the going rent, with "all utilities
 included", posted on a do-it-yourself landlord platform and syndicated to bigger portals. It was a
-copy of a $1.9M for-sale listing that had been *withdrawn* days earlier. A live "is this address for
+copy of a for-sale listing (asking close to $2M) that had been *withdrawn* days earlier. A live "is this address for
 sale?" lookup therefore came back clean. The post had two different phone numbers and a description
 that broke off mid-sentence into "To apply...". It was taken down a day after it went up.
 → Led to the **sale-history index** (which remembers withdrawn listings), the **rent-vs-value check**,

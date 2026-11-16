@@ -25,7 +25,7 @@ def test_copied_description_from_another_address():
     conn.execute("INSERT INTO sale_listings VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                  ("p1", "916 elm st", "916 Elm St, Town, IL", 41.9, -87.6, "SOLD", 1_400_000, 1_450_000,
                   "2030-01-01", "2030-02-01", None, "Some Realty", DESC, db.now(), db.now()))
-    rental = {"address": "3916 Elm St, Town, IL", "lat": 41.9, "lon": -87.6, "body": "Rent now! " + DESC}
+    rental = {"address": "4127 Elm St, Town, IL", "lat": 41.9, "lon": -87.6, "body": "Rent now! " + DESC}
     idx = sales.TextIndex(conn, [rental["body"]])
     m = sales.match(conn, rental, idx)
     assert m["copied_from"]["address"] == "916 Elm St, Town, IL"

@@ -111,10 +111,12 @@ DEFAULTS: dict = {
         "max_listings": 10,            # new listings (and "still available" rows) per chat notification
     },
     "sources": {
+        # Every source also accepts `interval_hours`: search it at most this often (0 = every run).
         "craigslist": {"enabled": False, "site": None, "postal": None, "distance_mi": 20},
         "redfin": {"enabled": True, "market": None},
         "realtor": {"enabled": True},
-        "pm-portal": {"enabled": False, "file": "portals.yaml"},
+        # Small companies' sites, and vacancies change slowly: check a few times a day, not hourly
+        "pm-portal": {"enabled": False, "file": "portals.yaml", "interval_hours": 6},
         "alerts": {
             "enabled": False,
             "imap_host": "imap.gmail.com",
@@ -125,6 +127,10 @@ DEFAULTS: dict = {
             "site_housing": {},        # e.g. {zillow: house/townhouse} if that saved search excludes apartments
             "extra_senders": {},       # extra sender domains to read, e.g. {examplenewsletter.org: newsletter}
         },
+    },
+    "services": {                      # free public services; point these at your own instance if you have one
+        "osrm_url": "https://router.project-osrm.org",          # drive times (OSRM "table" API)
+        "nominatim_url": "https://nominatim.openstreetmap.org",  # second-opinion address check
     },
     "areas_file": "areas.yaml",
     "data_dir": "data",
@@ -184,6 +190,30 @@ def imap_credentials() -> tuple[str | None, str | None]:
     return user, pw
 
 
+# Mappings whose keys are user data (station codes, sender domains, ...), not settings.
+FREE_FORM = {("scoring", "home_types"), ("commute", "transit", "exits"), ("sources", "alerts", "site_housing"),
+             ("sources", "alerts", "extra_senders")}
+
+
+def unknown_keys(user: dict, defaults: dict | None = None, path: tuple = ()) -> list[str]:
+    """Dotted names of settings in the user's config that Rental Radar doesn't know (usually typos)."""
+    defaults = DEFAULTS if defaults is None else defaults
+    out = []
+    for k, v in (user or {}).items():
+        here = path + (str(k),)
+        if here in FREE_FORM:
+            continue
+        if k not in defaults:
+            if path == ("sources",) or (len(here) == 3 and here[:1] == ("sources",) and k == "interval_hours"):
+                if path == ("sources",):
+                    out.append(".".join(here) + " (no such source)")
+                continue
+            out.append(".".join(here))
+        elif isinstance(v, dict) and isinstance(defaults[k], dict):
+            out += unknown_keys(v, defaults[k], here)
+    return out
+
+
 def _normalize_sources(raw: dict) -> dict:
     """Accept `craigslist: true` shorthand as well as the full mapping."""
     out = {}
@@ -212,6 +242,7 @@ def load_config(path: Path | str | None = None) -> dict:
     if "sources" in user:
         user["sources"] = _normalize_sources(user["sources"])
     cfg = deep_merge(DEFAULTS, user)
+    cfg["_unknown"] = unknown_keys(user)
     cfg["_path"] = str(path)
     cfg["_dir"] = str(base)
     cfg["_data_dir"] = str((base / cfg["data_dir"]).resolve())

@@ -13,6 +13,15 @@ Use the account in `.env` (`SMTP_USER`), or set `IMAP_USER` / `IMAP_PASSWORD` fo
 up on each site with that address, or forward the alerts to it. Alerts stay unread, so you can still
 read them yourself.
 
+**Consider a dedicated mailbox.** An app password gives full access to the whole mailbox, not just
+the alert emails, and it sits in `.env` on your machine. A free address used only for rental alerts
+(set as `IMAP_USER` / `IMAP_PASSWORD`) keeps your main inbox out of it. Rental Radar only ever reads,
+and only messages from the alert senders.
+
+**Forged senders are ignored.** An email counts as an alert only if its From address is really at the
+site's domain (or a subdomain) and it didn't fail your mail server's SPF, DKIM and DMARC checks. Only
+ordinary web links are kept from it.
+
 Gmail: the same app password works for IMAP. Other providers: set `sources.alerts.imap_host`
 (e.g. `imap.fastmail.com`, `outlook.office365.com`, `imap.mail.me.com`).
 

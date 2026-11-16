@@ -5,6 +5,40 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-16
+
+### Fixed
+- A failed Discord, Slack or Telegram delivery could write the webhook URL (with its secret token) into the
+  log. Errors now name only the host.
+- Marking a listing `rejected` or `interested` is now permanent. Before, the mark was lost if the listing
+  dropped out of one search and came back.
+- "Small dogs OK" was treated as a dealbreaker for every dog owner; now only when your dog is over 25 lb.
+- A blocked or rate-limited detail page (HTTP 403/429) was saved as "details fetched" with no description
+  and never retried. It is now an error, retried next run, and detail fetching stops after 5 failures in a row.
+- A property with no Realtor.com record was looked up again on every run.
+- Craigslist contact emails no longer pick up a trailing full stop.
+- Systemd units and crontab lines now work when the config path contains spaces.
+
+### Added
+- Only one run per search at a time: the digest waits for a collection that is still going.
+- Listings are no longer marked "gone" when a search only partly worked (one city or portal failed) or
+  suddenly returns far fewer results than usual. The digest reports incomplete results.
+- `interval_hours` per source. Property-manager portals default to every 6 hours instead of hourly.
+- `services.osrm_url` and `services.nominatim_url`, for people running their own instances. The digest
+  warns when drive times fell back to straight-line estimates.
+- `radar doctor` warns about settings it doesn't recognize (typos).
+- Alert emails must really come from the site's domain and pass the mail server's SPF/DKIM/DMARC checks.
+  Only http(s) links are kept. Gmail's "All Mail" folder is found in any language.
+- Database schema versioning with automatic migration of older databases.
+- `SECURITY.md`, a terms-of-use notice in the README and the setup wizard, pinned dependency ranges,
+  `ruff` and a coverage floor in CI.
+- Tests for every source parser, the address checks, the setup wizard, scheduling output and the
+  day-to-day commands (35 → 74 tests, 52% → 78% coverage). The test suite blocks network access.
+
+### Changed
+- Scam checks moved from `analyze.py` to their own module, `scam.py`.
+- `radar mark <uid> none` clears a mark (`active` still works).
+
 ## [0.2.0] - 2026-11-16
 
 ### Added
@@ -37,5 +71,6 @@ and versions follow [Semantic Versioning](https://semver.org/).
   cons, scam detection with retractions, an email digest and top-pick alerts, systemd/cron scheduling,
   the `radar init` wizard, and the East Bay and minimal examples.
 
+[0.3.0]: https://github.com/jacotay7/rental-radar/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/jacotay7/rental-radar/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/jacotay7/rental-radar/releases/tag/v0.1.0

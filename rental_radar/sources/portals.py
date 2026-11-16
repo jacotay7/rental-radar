@@ -14,6 +14,7 @@ import yaml
 from .. import http
 from ..config import resolve
 from ..geo import geocode
+from . import Incomplete
 
 log = logging.getLogger("radar")
 
@@ -55,8 +56,7 @@ def _appfolio(portal, cfg, conn) -> list[dict]:
     base = f"https://{portal['sub']}.appfolio.com"
     r = http.get(base + "/listings", min_interval=1.5)
     if r.status_code != 200:
-        log.warning("appfolio %s: HTTP %s", portal["sub"], r.status_code)
-        return []
+        raise RuntimeError(f"HTTP {r.status_code}")
     s = r.text
     m = re.search(r"markers:\s*(\[.*?\])\s*,\s*\n", s, re.S)
     markers = json.loads(m.group(1)) if m else []
@@ -98,10 +98,12 @@ def _appfolio(portal, cfg, conn) -> list[dict]:
     return out
 
 
-def _appfolio_detail(listing) -> dict:
+def _appfolio_detail(listing) -> dict | None:
     r = http.get(listing["url"], min_interval=1.5)
+    if r.status_code in (404, 410):
+        return None
     if r.status_code != 200:
-        return listing
+        raise RuntimeError(f"HTTP {r.status_code} for an AppFolio listing page")
     s = r.text
     out = dict(listing)
     m = re.search(r'class="listing-detail__description[^"]*">(.*?)</p>', s, re.S)
@@ -124,8 +126,7 @@ def _buildium(portal, cfg, conn) -> list[dict]:
     base = f"https://{portal['sub']}.managebuilding.com"
     r = http.get(base + "/Resident/public/rentals", min_interval=1.5)
     if r.status_code != 200 or "/Resident/apps/portal/login" in r.url:
-        log.warning("buildium %s: unavailable (%s)", portal["sub"], r.status_code)
-        return []
+        raise RuntimeError(f"vacancy page unavailable (HTTP {r.status_code})")
     out = []
     for m in re.finditer(r'<a class="featured-listing[^"]*" href="([^"]+)"(.*?)</a>', r.text, re.S):
         href, inner = m.group(1), m.group(2)
@@ -154,10 +155,12 @@ def _buildium(portal, cfg, conn) -> list[dict]:
     return out
 
 
-def _buildium_detail(listing) -> dict:
+def _buildium_detail(listing) -> dict | None:
     r = http.get(listing["url"], min_interval=1.5)
+    if r.status_code in (404, 410):
+        return None
     if r.status_code != 200:
-        return listing
+        raise RuntimeError(f"HTTP {r.status_code} for a Buildium listing page")
     out = dict(listing)
     descs = re.findall(r'class="unit-detail__description">(.*?)</div>', r.text, re.S)
     feats = re.search(r'class="unit-detail__features-list">(.*?)</ul>', r.text, re.S)
@@ -182,7 +185,7 @@ def _buildium_detail(listing) -> dict:
 def _rentvine(portal, cfg, conn) -> list[dict]:
     r = http.get(f"https://{portal['sub']}.rentvine.com/api/public/listings", min_interval=1.5)
     if r.status_code != 200:
-        return []
+        raise RuntimeError(f"HTTP {r.status_code}")
     out = []
     for x in r.json():
         u, p, li = x.get("unit", {}), x.get("property", {}), x.get("listing", {})
@@ -222,20 +225,26 @@ def search(cfg, conn=None) -> list[dict]:
         log.warning("pm-portal: %s not found", path)
         return []
     portals = (yaml.safe_load(path.read_text()) or {}).get("portals") or []
-    out = []
+    out, failed = [], []
     for portal in portals:
         try:
             found = PLATFORMS[portal["platform"]](portal, cfg, conn)
             out += [d for d in found if (d.get("beds") or 0) >= cfg["size"]["min_beds"]
                     and d.get("price") and d["price"] <= cfg["budget"]["hard_max"]]
         except Exception as e:
-            log.warning("portal %s failed: %s", portal["sub"], e)
+            log.warning("portal %s failed: %s", portal.get("sub"), e)
+            failed.append(str(portal.get("sub")))
     if conn is not None:
         conn.commit()
+    if portals and len(failed) == len(portals):
+        raise RuntimeError(f"all {len(portals)} portals failed")
+    if failed:
+        # Listings from a portal that didn't answer keep their status until it does
+        return Incomplete(out, tuple(f"pm:{sub}:" for sub in failed), f"portals failed: {', '.join(failed)}")
     return out
 
 
-def fetch_detail(listing: dict, cfg) -> dict:
+def fetch_detail(listing: dict, cfg) -> dict | None:
     if listing.get("platform") == "appfolio":
         return _appfolio_detail(listing)
     if listing.get("platform") == "buildium":

@@ -19,7 +19,7 @@ transit, the lister's contact details, and one-click Map / Street View / route l
 
 It was built for a real cross-country move, searching remotely for a family home with a big dog. Along
 the way it caught two convincing scams: a fake street number pasted onto a just-sold home's listing,
-and a withdrawn $1.9M for-sale listing reposted as a $3,000 rental. It has since been turned into a
+and a withdrawn for-sale listing reposted as a rental at half the going rent. It has since been turned into a
 general tool that works anywhere in the US.
 
 <p align="center"><img src="docs/images/demo-email.png" width="560"
@@ -175,7 +175,7 @@ Found a place? `radar schedule remove`. 🎉
 | `radar run [--mode alerts\|digest\|all] [--dry-run] [--no-collect]` | One full cycle (`--dry-run` sends nothing) |
 | `radar top [-n 40] [--all]` | Ranked list of active listings (`E` = already sent) |
 | `radar show <uid> [--raw]` | Pros/cons, contact, score components and adjustments |
-| `radar mark <uid> interested\|rejected\|active` | Rejected listings are never sent again |
+| `radar mark <uid> interested\|rejected\|none` | Rejected listings are never sent again; `none` clears the mark |
 | `radar rescore` | Re-score everything after editing `config.yaml` or `areas.yaml` |
 | `radar preview [--send] [--intro "..."]` | Render (and optionally email) the current best matches |
 | `radar baseline` | Mark all current matches as already sent |
@@ -247,9 +247,21 @@ changes, and adding sources. Try asking:
 ## Limitations and responsible use
 
 - **US only.** Address checks use the US Census geocoder and the sources are US sites.
-- **Be a good citizen.** Requests are rate-limited per host and the schedule is hourly. Keep it that
-  way, keep it personal, and respect each site's terms. If a site blocks automated access, use its
-  alert emails instead.
+- **Check each site's terms before you enable it.** Rental Radar is a personal tool, provided as is,
+  and is not affiliated with or endorsed by any listing site. Several sources read public pages or
+  unofficial interfaces, and some sites' terms of use restrict automated access (Craigslist's do).
+  Every source is switched on or off in `config.yaml`, and whether to use one is your decision and
+  your responsibility. Realtor.com is reached through the third-party
+  [HomeHarvest](https://github.com/ZacharyHampton/HomeHarvest) library, which presents itself to
+  Realtor.com in its own way; Rental Radar's "no anti-bot circumvention" rule covers this project's
+  own requests. Saved-search alert emails are the option that the sites themselves offer.
+- **Be a good citizen.** Requests are rate-limited per host, the schedule is hourly, and small
+  property-manager sites are checked only every 6 hours. Keep it that way and keep it personal: no
+  reselling, republishing or bulk collection. Rental Radar does not try to get around bot protection,
+  and changes that do so won't be accepted.
+- **Shared free services.** Drive times come from the public OSRM demo server and address checks from
+  the US Census geocoder and OpenStreetMap Nominatim, all free and all with fair-use limits. If you run
+  your own OSRM or Nominatim, point `services.osrm_url` / `services.nominatim_url` at it.
 - **Scores are opinions.** Neighborhood ratings come from you (or the example's authors), and the
   scam checks are heuristics. A clean score is not a guarantee: never pay a deposit before a tour
   (in person or live video) and a signed lease.
@@ -263,7 +275,8 @@ changes, and adding sources. Try asking:
 rental_radar/
   cli.py          radar command (init, doctor, schedule, run, top, show, ...)
   pipeline.py     collect -> score -> scam checks -> retractions -> notify
-  analyze.py      scoring model, pros/cons, scam heuristics
+  analyze.py      scoring model, pros/cons
+  scam.py         scam heuristics: phrases, prices, hijacked sale listings, "verify this" flags
   geo.py          geocoding, neighborhoods, drive/transit/bike commute
   sales.py        sale-history index + copied-description matching
   verify.py       address existence, property records, posting-removed checks
@@ -280,7 +293,7 @@ tests/            pytest suite (offline)
 
 ## Contributing
 
-Issues and pull requests are welcome, especially new region examples (`examples/<region>/`), new
+Found a security problem? See [SECURITY.md](SECURITY.md). Issues and pull requests are welcome, especially new region examples (`examples/<region>/`), new
 property-manager platforms, and alert-email formats. If a source stops working, the "source stopped
 working" issue template asks for exactly what's needed to fix it. Run `pytest` before sending changes,
 add a line to [CHANGELOG.md](CHANGELOG.md) for anything users will notice, and see

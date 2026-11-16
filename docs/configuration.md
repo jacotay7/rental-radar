@@ -13,7 +13,8 @@ A search is a folder containing:
 `radar` finds the config through `--config PATH`, then `$RADAR_CONFIG`, then `./config.yaml`. Paths
 inside the config are relative to its folder. Anything you leave out falls back to
 `rental_radar/config.py: DEFAULTS`, so a working config can be [short](../examples/minimal/config.yaml).
-`radar doctor` validates it.
+`radar doctor` validates it, and warns about settings it doesn't recognize (usually a typo, which
+would otherwise be silently ignored).
 
 ## `search`
 
@@ -131,15 +132,27 @@ is set. See [notifications.md](notifications.md).
 
 ## `sources`
 
-`craigslist: true` is shorthand for `craigslist: {enabled: true}`.
+`craigslist: true` is shorthand for `craigslist: {enabled: true}`. Every source also takes
+`interval_hours`: search it at most that often (0 = every run). Property-manager portals default to 6,
+because they are small companies' sites and their vacancies change slowly.
 
 | Source | Keys (defaults) |
 |---|---|
 | `craigslist` | `enabled` (false), `site`, `postal`, `distance_mi` (20) |
 | `redfin` | `enabled` (true), `market` (null) |
 | `realtor` | `enabled` (true) |
-| `pm-portal` | `enabled` (false), `file` (`portals.yaml`) |
+| `pm-portal` | `enabled` (false), `file` (`portals.yaml`), `interval_hours` (6) |
 | `alerts` | `enabled` (false), `imap_host` (`imap.gmail.com`), `lookback_days` (14), `filtered_sites`, `site_housing` ({}), `extra_senders` ({}) |
+
+## `services`
+
+Free public services used for commute times and address checks. They have fair-use limits, so point
+these at your own instance if you run one.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `osrm_url` | `https://router.project-osrm.org` | [OSRM](https://project-osrm.org/) server for drive times. If it doesn't answer, commutes fall back to straight-line estimates and the digest says so |
+| `nominatim_url` | `https://nominatim.openstreetmap.org` | second-opinion address lookup for the fake-address check |
 
 ## `schedule`
 

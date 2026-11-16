@@ -96,6 +96,7 @@ sources:
   pm-portal:
     enabled: true
     file: portals.yaml         # 34 East Bay property managers
+    interval_hours: 6          # small companies' sites: check a few times a day, not hourly
   alerts:
     enabled: false             # turn on after setting up saved searches (docs/saved-search-alerts.md)
     imap_host: "imap.gmail.com"

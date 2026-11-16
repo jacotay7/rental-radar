@@ -7,6 +7,7 @@ US Census geocoder. See docs/saved-search-alerts.md.
 """
 import email
 import email.policy
+import email.utils
 import hashlib
 import html
 import imaplib
@@ -192,11 +193,48 @@ def parse_alert(raw_html: str, site: str, received: str, state: str, filtered: b
     return recs
 
 
+def sender_site(from_header: str, senders: dict) -> str | None:
+    """The alert site for a From header, matching the address's real domain (or a subdomain of it).
+    A substring test would accept `zillow.com.evil.example` or a display name containing the domain."""
+    domain = email.utils.parseaddr(from_header or "")[1].rpartition("@")[2].lower()
+    for known, site in senders.items():
+        if domain == known or domain.endswith("." + known):
+            return site
+    return None
+
+
+def authenticated(msg) -> bool:
+    """False when the receiving mail server checked this message and it failed SPF, DKIM and DMARC,
+    i.e. the From address is probably forged. Servers that don't record results get the benefit of
+    the doubt (True)."""
+    results = " ".join(str(h) for h in msg.get_all("Authentication-Results") or []).lower()
+    if not results:
+        return True
+    return any(f"{check}=pass" in results for check in ("dkim", "spf", "dmarc"))
+
+
+def safe_url(url: str) -> str:
+    """Only http(s) links are kept; anything else (javascript:, data:, mailto:) is dropped."""
+    return url if re.match(r"https?://[^\s\"'<>]+$", url or "", re.I) else ""
+
+
+def _all_mail_folder(m) -> str:
+    """Gmail's "All Mail" folder, whatever it is called in the account's language (it has the \\All flag)."""
+    typ, boxes = m.list()
+    for raw in (boxes or []) if typ == "OK" else []:
+        line = raw.decode(errors="ignore") if isinstance(raw, bytes) else str(raw)
+        if "\\All" in line:
+            name = re.search(r'"([^"]+)"\s*$', line)
+            if name:
+                return f'"{name.group(1)}"'
+    return '"[Gmail]/All Mail"'
+
+
 def _message_ids(m, host: str, senders: dict, days: int) -> list[bytes]:
     """IDs of recent emails from alert senders. Gmail gets a server-side search; other servers a date
     search filtered by From header."""
     if "gmail" in host:
-        m.select('"[Gmail]/All Mail"', readonly=True)
+        m.select(_all_mail_folder(m), readonly=True)
         typ, data = m.search(None, "X-GM-RAW", f'"from:({" OR ".join(senders)}) newer_than:{days}d"')
         return data[0].split() if typ == "OK" else []
     m.select("INBOX", readonly=True)
@@ -207,8 +245,8 @@ def _message_ids(m, host: str, senders: dict, days: int) -> list[bytes]:
     for mid in ids:
         typ, hdr = m.fetch(mid, "(BODY.PEEK[HEADER.FIELDS (FROM)])")
         if typ == "OK" and hdr and isinstance(hdr[0], tuple):
-            frm = hdr[0][1].decode(errors="ignore").lower()
-            if any(s in frm for s in senders):
+            frm = hdr[0][1].decode(errors="ignore").partition(":")[2]
+            if sender_site(frm, senders):
                 keep.append(mid)
     return keep
 
@@ -222,17 +260,24 @@ def search(cfg, conn=None) -> list[dict]:
     state = cfg["search"]["state"]
     senders = {**SENDERS, **(acfg.get("extra_senders") or {})}
     host = acfg.get("imap_host", "imap.gmail.com")
-    m = imaplib.IMAP4_SSL(host)
+    m = imaplib.IMAP4_SSL(host, timeout=60)
     m.login(user, pw.replace(" ", ""))
     ids = _message_ids(m, host, senders, acfg.get("lookback_days", 14))
     out: dict[str, dict] = {}
+    skipped = 0
     for mid in ids[-300:]:
         typ, msgdata = m.fetch(mid, "(BODY.PEEK[])")
         if typ != "OK" or not msgdata or not isinstance(msgdata[0], tuple):
             continue
         msg = email.message_from_bytes(msgdata[0][1], policy=email.policy.default)
         frm = (msg.get("From") or "").lower()
-        site = next((v for k, v in senders.items() if k in frm), "alert")
+        site = sender_site(frm, senders)
+        if not site:
+            continue
+        if not authenticated(msg):
+            log.warning("alerts: skipping an email claiming to be from %s that failed SPF/DKIM/DMARC", site)
+            skipped += 1
+            continue
         part = msg.get_body(("html", "plain"))
         if part is None:
             continue
@@ -244,11 +289,14 @@ def search(cfg, conn=None) -> list[dict]:
             if lat is None:
                 continue
             rec["lat"], rec["lon"] = lat, lon
+            rec["url"] = safe_url(rec.get("url"))
+            rec["photos"] = [p for p in rec.get("photos") or [] if safe_url(p)]
             rec["alert_subject"] = subject
             out[rec["uid"]] = rec
     m.logout()
     conn.commit()
-    log.info("alerts: %d emails scanned, %d listings parsed", len(ids), len(out))
+    log.info("alerts: %d emails scanned, %d listings parsed%s", len(ids), len(out),
+             f", {skipped} unauthenticated emails skipped" if skipped else "")
     return list(out.values())
 
 

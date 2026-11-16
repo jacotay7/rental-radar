@@ -132,6 +132,14 @@ needed: alert emails cover the same inventory.
 6. Add a parser test with a saved, anonymized fixture under `tests/fixtures/`.
 7. Document it in this file and in the README's source table.
 
+## Partial results
+
+If a search only partly worked (one city or one portal failed), return
+`sources.Incomplete(found, unknown_prefixes, reason)` instead of a plain list. The pipeline then keeps
+the listings it couldn't check rather than marking them rented, and the digest reports the reason. A
+detail fetch should return `None` only when the post is really gone (404/410 or a "deleted" page) and
+raise on anything else (403, 429, 5xx), so a block page is never saved as "details fetched".
+
 ## When a source breaks
 
 Sites change their markup and APIs. Rental Radar notices: when a source's latest run failed, or found

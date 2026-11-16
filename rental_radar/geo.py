@@ -9,7 +9,6 @@ import math
 from . import db, http
 
 log = logging.getLogger("radar")
-OSRM = "https://router.project-osrm.org/table/v1/driving/"
 CENSUS_GEOCODER = "https://geocoding.geo.census.gov/geocoder/locations/onelineaddress"
 
 
@@ -35,7 +34,7 @@ def census_match(address: str) -> dict | None:
                     "matched": m[0].get("matchedAddress"), "city": (comp.get("city") or "").title() or None,
                     "state": comp.get("state"), "zip": comp.get("zip")}
     except Exception as e:
-        log.debug("geocode failed %s: %s", address, e)
+        log.warning("Census geocoder failed for an address (%s)", type(e).__name__)
     return None
 
 
@@ -135,16 +134,19 @@ def drive_minutes(conn, points: list[tuple[float, float]], cfg) -> list[float | 
         if v is not None:
             cached[k] = float(v)
     todo = sorted({k for k in keys if k not in cached})
+    osrm = cfg.get("services", {}).get("osrm_url", "https://router.project-osrm.org").rstrip("/") \
+        + "/table/v1/driving/"
     for i in range(0, len(todo), 80):
         chunk = todo[i:i + 80]
         coords = ";".join(f"{k.split(',')[1]},{k.split(',')[0]}" for k in chunk) + f";{dest[1]},{dest[0]}"
         n = len(chunk)
         try:
-            resp = http.get(OSRM + coords, params={"sources": ";".join(map(str, range(n))), "destinations": str(n)},
+            resp = http.get(osrm + coords, params={"sources": ";".join(map(str, range(n))), "destinations": str(n)},
                             min_interval=1.5)
             durs = resp.json()["durations"]
         except Exception as e:
-            log.debug("OSRM failed: %s", e)
+            log.warning("Routing service (OSRM) failed for %d listings (%s); their drive times will be "
+                        "straight-line estimates until it answers", n, type(e).__name__)
             continue
         for k, row in zip(chunk, durs):
             if row and row[0] is not None:

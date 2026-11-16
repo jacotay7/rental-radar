@@ -19,7 +19,7 @@ body:
     attributes:
       label: Version
       description: Output of `radar --version`
-      placeholder: rental-radar 0.2.0
+      placeholder: rental-radar 0.3.0
     validations:
       required: true
   - type: input

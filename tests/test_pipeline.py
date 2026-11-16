@@ -1,5 +1,6 @@
 """End-to-end run with a fake source and no network."""
 import json
+from datetime import UTC
 
 from rental_radar import db, geo, pipeline
 from tests.conftest import listing, make_cfg
@@ -41,8 +42,8 @@ def test_full_run_writes_preview(tmp_path, monkeypatch):
 
 
 def _log_runs(conn, summaries):
-    from datetime import datetime, timedelta, timezone
-    t0 = datetime.now(timezone.utc) - timedelta(hours=len(summaries))
+    from datetime import datetime, timedelta
+    t0 = datetime.now(UTC) - timedelta(hours=len(summaries))
     for i, s in enumerate(summaries):
         ts = (t0 + timedelta(hours=i)).isoformat()
         conn.execute("INSERT INTO runs VALUES (?,?,?)", (ts, ts, json.dumps(s)))

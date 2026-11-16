@@ -1,7 +1,7 @@
 """SQLite persistence: listings, analysis, caches, run log, and the sale-history index."""
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 SCHEMA = """
@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS listings (
     detail_fetched INTEGER DEFAULT 0,
     emailed_at TEXT,
     dup_of TEXT,                   -- uid of the canonical listing if a cross-post duplicate
-    status TEXT DEFAULT 'active'   -- active | gone | rejected | interested
+    status TEXT DEFAULT 'active',  -- active | gone (rented/removed; set by collection)
+    mark TEXT                      -- your own mark: interested | rejected | NULL (survives status changes)
 );
 CREATE TABLE IF NOT EXISTS cache (
     key TEXT PRIMARY KEY,          -- "lat,lon" -> drive minutes; "geo:<address>" -> "lat|lon"
@@ -41,14 +42,47 @@ CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
 
 
 def now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
+
+
+SCHEMA_VERSION = 2
+
+
+def _migrate_1_to_2(conn):
+    """Your marks (interested / rejected) move out of `status` into their own column, so a listing that
+    drops out of search results and comes back keeps its mark."""
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(listings)")}
+    if "mark" not in cols:
+        conn.execute("ALTER TABLE listings ADD COLUMN mark TEXT")
+    conn.execute("UPDATE listings SET mark=status, status='active' WHERE status IN ('interested','rejected')")
+
+
+# version N -> N+1. Add a function here and bump SCHEMA_VERSION whenever the schema changes.
+MIGRATIONS = {1: _migrate_1_to_2}
+
+
+def migrate(conn) -> None:
+    """Bring an older database up to SCHEMA_VERSION (tracked in SQLite's `PRAGMA user_version`)."""
+    version = conn.execute("PRAGMA user_version").fetchone()[0]
+    if version == 0:
+        # Either brand new (the schema below is current) or created before versions were tracked (v1).
+        has_listings = conn.execute("SELECT 1 FROM sqlite_master WHERE name='listings'").fetchone()
+        version = 1 if has_listings else SCHEMA_VERSION
+    if version > SCHEMA_VERSION:
+        raise RuntimeError(f"This database is from a newer Rental Radar (schema {version}); please upgrade.")
+    while version < SCHEMA_VERSION:
+        MIGRATIONS[version](conn)
+        version += 1
+    conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+    conn.commit()
 
 
 def connect(data_dir: str | Path) -> sqlite3.Connection:
     data_dir = Path(data_dir)
     data_dir.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(data_dir / "rentals.db")
+    conn = sqlite3.connect(data_dir / "rentals.db", timeout=30)
     conn.row_factory = sqlite3.Row
+    migrate(conn)                 # before SCHEMA: old tables get new columns first
     conn.executescript(SCHEMA)
     return conn
 

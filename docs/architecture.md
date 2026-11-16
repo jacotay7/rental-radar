@@ -44,6 +44,17 @@ the `runs` table and prints it. **Source health** (`pipeline.source_health`) com
 latest collection with its own last 14 days. If the latest run failed, or found under 25% of its usual
 count (when it usually finds 20 or more), a warning goes into the daily digest and `radar doctor`.
 
+**One run at a time.** Each run takes a lock file (`data/run.lock`). A run that starts while another is
+going (the daily digest during a long collection) waits for it, up to an hour, instead of colliding in
+the database.
+
+**Deciding a listing is gone.** A listing missing from a source's search results is marked `gone`
+(rented or removed), but only when the search can be trusted to be complete. Nothing is marked when:
+the source reports partial results (`sources.Incomplete`: one city or one portal failed), or the
+search suddenly returns under a quarter of the listings that were active. A detail page that fails to
+load (as opposed to a deleted post) leaves the listing to be retried next run; after 5 failures in a
+row the source's detail fetching stops for that run.
+
 ## Data model
 
 ### Normalized listing (`listings.data`)
@@ -80,11 +91,13 @@ caution_flags, pros, cons}`. It's recomputed on every run and never edited by ha
 
 | Table | Contents |
 |---|---|
-| `listings` | one row per listing: data, analysis, score, first/last seen, `detail_fetched`, `emailed_at`, `dup_of`, `status` (`active`, `gone`, `rejected`, `interested`) |
+| `listings` | one row per listing: data, analysis, score, first/last seen, `detail_fetched`, `emailed_at` (sent on any channel), `dup_of`, `status` (`active` or `gone`, set by collection), `mark` (`interested`, `rejected` or empty, set by you with `radar mark`; it survives a listing disappearing and coming back) |
 | `cache` | drive times (`drive:<dest>:<lat,lon>`) and geocodes (`geo:<address>`), including misses |
 | `sale_listings` | the sale-history index |
 | `runs` | per-run summary JSON |
 | `meta` | `sales_refreshed` timestamp |
+
+The schema version is stored in SQLite's `PRAGMA user_version`. `db.connect` upgrades older databases step by step (`db.MIGRATIONS`) and refuses to open one written by a newer version. To change the schema: edit `SCHEMA`, add a migration function, and bump `SCHEMA_VERSION`.
 
 Delete `data/` to start over. Nothing else depends on it.
 
@@ -95,7 +108,8 @@ Delete `data/` to start over. Nothing else depends on it.
 | `cli.py` | argument parsing, `init` wizard, `doctor`, `schedule`, day-to-day commands |
 | `pipeline.py` | the run cycle above |
 | `config.py` | `DEFAULTS`, loading/merging, derived defaults (`finalize`), `validate`, `.env` |
-| `analyze.py` | the scoring model, pros/cons, scam heuristics |
+| `analyze.py` | the scoring model and pros/cons; combines the scam checks into the score |
+| `scam.py` | scam heuristics: phrases and prices, hijacked sale listings, "verify this" flags |
 | `geo.py` | distance, Census geocoding (cached), neighborhoods, drive (OSRM), transit, bike |
 | `sales.py` | sale-history refresh, street keys, shingle text index |
 | `verify.py` | address existence, property records, posting-removed checks |
