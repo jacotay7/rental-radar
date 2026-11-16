@@ -1,0 +1,29 @@
+name: Share or request a region
+description: Contribute an areas.yaml / portals.yaml for a metro area, or ask for help with one.
+labels: ["region"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Region files (neighborhood ratings, transit stations, dog parks, property-manager portals) are the
+        most useful contributions. See docs/regions.md. A pull request adding `examples/<region>/` is even
+        better. **Don't include your own address, email or the destination you commute to.**
+  - type: input
+    id: region
+    attributes:
+      label: Metro area
+      placeholder: e.g. Denver, CO
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: This is
+      options: [Contributing region files, Asking for help building them]
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: What the neighborhood scores weigh (safety, schools, walkability...), when they were made, sources used, and how many portals were verified. Or, for a request, what you need.

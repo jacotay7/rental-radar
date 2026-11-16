@@ -134,8 +134,9 @@ needed: alert emails cover the same inventory.
 
 ## When a source breaks
 
-Sites change their markup and APIs. Symptoms: `search failed: ...` in the run summary, or
-`found: 0` for a source that used to return hundreds. Run `radar -v run --no-email --no-collect`
-to rule out config problems, then `radar -v run --no-email` and look at that source's log lines.
+Sites change their markup and APIs. Rental Radar notices: when a source's latest run failed, or found
+less than a quarter of its usual count, the daily digest gets a "⚠ Source problems" banner and
+`radar doctor` prints a warning. Run `radar -v run --dry-run --no-collect` to rule out config problems,
+then `radar -v run --dry-run` and look at that source's log lines.
 Fix the parser against a fresh sample of the page, add the sample as a test fixture, and keep
 everything else working while that source is disabled (`enabled: false`).

@@ -1,10 +1,11 @@
 """The run cycle: collect -> score -> scam checks -> retractions -> email. See docs/architecture.md."""
 import json
 import logging
+import statistics
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import analyze, db, emailer, geo, sales, verify
+from . import analyze, db, emailer, geo, notify, sales, verify
 from .config import move_in
 from .sources import SOURCES
 
@@ -162,13 +163,43 @@ def retractions(conn, cfg, send=True, preview_path: Path | None = None) -> int:
         out.write_text(msg.get_body(("html",)).get_content())
         log.info("Retraction preview (%d listings) written to %s", len(items), out)
         return len(items)
-    emailer.send(msg, cfg)
+    notify.send_retraction(items, cfg)
     for r, d, _ in items:
         d["retracted_at"] = db.now()
         conn.execute("UPDATE listings SET data=? WHERE uid=?", (json.dumps(d), r["uid"]))
     conn.commit()
     log.info("Sent scam retraction for %d listings", len(items))
     return len(items)
+
+
+def source_health(conn, cfg, days: int = 14) -> list[str]:
+    """Plain-English warnings for sources that failed or suddenly found far fewer listings than usual.
+
+    Scrapers break silently when a site changes, so this compares each source's latest collection run
+    with its own recent history (from the `runs` table) and the digest email shows the result."""
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    runs = [json.loads(r["summary"]) for r in conn.execute(
+        "SELECT summary FROM runs WHERE finished >= ? ORDER BY finished DESC", (since,))]
+    warnings = []
+    for name in SOURCES:
+        if not cfg["sources"].get(name, {}).get("enabled"):
+            continue
+        history = [r[name] for r in runs if name in r]
+        if not history:
+            continue
+        latest = history[0]
+        if isinstance(latest, str):
+            streak = next((i for i, h in enumerate(history) if not isinstance(h, str)), len(history))
+            warnings.append(f"{name}: the last {streak} run{'s' if streak > 1 else ''} failed ({latest[:160]}). "
+                            "The site may have changed or be blocking requests; run `radar doctor` and check the log.")
+            continue
+        prev = [h["found"] for h in history[1:] if isinstance(h, dict)]
+        if len(prev) >= 3:
+            typical = statistics.median(prev)
+            if typical >= 20 and latest["found"] < 0.25 * typical:
+                warnings.append(f"{name}: found {latest['found']} listings in the latest run (usually about "
+                                f"{typical:.0f}). The site may have changed; run `radar doctor` and check the log.")
+    return warnings
 
 
 def run(conn, cfg, mode="all", collect_listings=True, send=True, detail_limit=300, preview_path=None) -> dict:
@@ -186,19 +217,27 @@ def run(conn, cfg, mode="all", collect_listings=True, send=True, detail_limit=30
         if mode == "digest":
             top = top_open(conn, cfg, cfg["email"]["digest_top"])
     stats["emailed"] = len(items)
-    if items or top:
-        msg = emailer.build_email(items, cfg, kind=mode, top=top)
+    # Record this run first so the health check sees its results
+    conn.execute("INSERT INTO runs VALUES (?,?,?)", (started, db.now(), json.dumps(stats)))
+    conn.commit()
+    warnings = source_health(conn, cfg) if mode != "alerts" else []
+    for w in warnings:
+        log.warning("source health: %s", w)
+    if items or top or warnings:
         if not send:
+            msg = emailer.build_email(items, cfg, kind=mode, top=top, warnings=warnings)
             out = Path(preview_path or Path(cfg["_data_dir"]) / "preview.html")
             out.write_text(msg.get_body(("html",)).get_content())
-            log.info("Email preview (%d listings) written to %s", len(items), out)
+            out.with_suffix(".chat.txt").write_text(notify.chat_preview(items, cfg, top, warnings))
+            log.info("Preview (%d listings) written to %s (chat version: %s)", len(items), out,
+                     out.with_suffix(".chat.txt").name)
             stats["emailed"] = 0
             stats["preview"] = str(out)
         else:
-            emailer.send(msg, cfg)
+            stats["channels"] = notify.send_matches(items, cfg, kind=mode, top=top, warnings=warnings)
             ts = db.now()
             conn.executemany("UPDATE listings SET emailed_at=? WHERE uid=?", [(ts, r["uid"]) for r, _, _ in items])
             log.info("Emailed %d listings", len(items))
-    conn.execute("INSERT INTO runs VALUES (?,?,?)", (started, db.now(), json.dumps(stats)))
+    conn.execute("UPDATE runs SET summary=? WHERE started=?", (json.dumps(stats), started))
     conn.commit()
     return stats

@@ -20,7 +20,7 @@ size: {min_beds: 1, ideal_beds: 1}
 pets: {cat: true}
 
 email:
-  to: ["you@example.com"]
+  to: []                       # e.g. ["you@example.com"]; or use a chat/push channel in .env
 
 sources:
   craigslist: {enabled: true, site: chicago, postal: "60606", distance_mi: 10}

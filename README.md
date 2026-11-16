@@ -6,7 +6,8 @@ Rental Radar is a small, self-hosted program that searches for a rental for you 
 Every hour it pulls listings from Craigslist, Redfin, Realtor.com, local property-management companies
 and your Zillow/HotPads/Trulia saved-search alerts. It scores each one against what *you* care
 about: budget, commute, bedrooms, yard, pets, the neighborhoods you love and the ones you don't. It
-checks each listing for the tell-tale signs of rental fraud, and then emails you:
+checks each listing for the tell-tale signs of rental fraud, and then sends you the best ones by
+email, Discord, Slack, Telegram or phone push notification (ntfy):
 
 - ⭐ **Top-pick alerts within the hour** when something great appears, because good places go fast.
 - 📬 **A daily digest** with every new match, plus a running "top 20 still available" shortlist.
@@ -21,27 +22,12 @@ the way it caught two convincing scams: a fake street number pasted onto a just-
 and a withdrawn $1.9M for-sale listing reposted as a $3,000 rental. It has since been turned into a
 general tool that works anywhere in the US.
 
-```
-⭐ East Bay rentals: top pick: 1 new match: best $3,850 · 3bd/2ba · 1,450 sqft · Albany (score 86)
+<p align="center"><img src="docs/images/demo-email.png" width="560"
+alt="A Rental Radar digest email: listings scored 91 and 86 with photos, commute times, pros and cons, contact details and map links"></p>
 
-[86] $3,850 · 3bd/2ba · 1,450 sqft · Albany
-Drive ~19 min (rush hour est.) · BART ~24 min (walk at El Cerrito Plaza → 12th St Oakland + walk)
-PROS:
-  + $3,850/mo is within your $4,000 target
-  + Two good commute options: ~19 min drive or ~24 min by BART
-  + Explicitly welcomes large dogs
-  + Private/fenced yard
-  + 3 bedrooms
-  + Whole house
-  + Available Mar 1: lines up with your Mar 1 move
-  + Albany: Small-town feel, excellent schools, very close to Point Isabel
-CONS:
-  - Scam check: posted on Craigslist (anyone can list there, no owner verification)
-  - Street parking only
-CONTACT:
-  Phone: (510) 555-0142
-  Use the 'reply' button on the post (email/phone/text options)
-```
+See it on your own machine in ten seconds, with no setup: `radar demo` scores a handful of made-up
+listings and opens the email in your browser (`radar demo --chat` also prints the Discord/ntfy
+version).
 
 ## Why it's different
 
@@ -57,23 +43,26 @@ CONTACT:
 
 ## Quick start
 
-Requirements: Python 3.11+, Linux or macOS, a US search area, and an email account that can send over
-SMTP (a Gmail app password works).
+Requirements: Python 3.11+, Linux or macOS (Windows via WSL), and a search area in the US.
 
 ```bash
-git clone https://github.com/jacotay7/rental-radar.git
-cd rental-radar
-python3 -m venv .venv && .venv/bin/pip install -e .      # or: uv venv && uv pip install -e .
-source .venv/bin/activate
+uv tool install git+https://github.com/jacotay7/rental-radar   # or: pipx install git+https://github.com/jacotay7/rental-radar
+radar demo                 # see what you'll get (made-up listings, nothing to configure)
 
 mkdir -p ~/my-search && cd ~/my-search
-radar init                 # 2-minute wizard: destination, budget, beds, pets, move-in, email
-$EDITOR .env               # SMTP_USER / SMTP_PASSWORD (see "Email setup" below)
-radar doctor --smtp        # checks config, credentials, network
-radar run --no-email       # first collection; open data/preview.html to see what you'd get
-radar test-email           # make sure mail arrives
+radar init                 # 2-minute wizard: destination, budget, beds, pets, move-in
+$EDITOR .env               # where results go: paste a Discord/Slack/ntfy webhook, or SMTP login for email
+radar doctor               # checks config, channels, network
+radar run --dry-run        # first real collection (a few minutes); open data/preview.html
+radar test-notify          # make sure messages reach you
 radar schedule install     # hourly top-pick alerts + daily digest (systemd), or: radar schedule cron
 ```
+
+No `uv`? Install it with `curl -LsSf https://astral.sh/uv/install.sh | sh`, or use `pipx`.
+
+**Using Claude Code?** Clone the repo, open it in Claude Code and type `/new-search`. It interviews you,
+writes the config, researches and rates neighborhoods for your city, and runs a dry run with you.
+Other agents can follow the same steps in [AGENTS.md](AGENTS.md).
 
 Want to see a complete setup first? `radar init --example east-bay` copies the original configuration:
 51 rated neighborhoods, BART modeling, 34 property managers.
@@ -82,11 +71,13 @@ Want to see a complete setup first? `radar init --example east-bay` copies the o
 
 ### 1. Install
 
-```bash
-git clone https://github.com/jacotay7/rental-radar.git && cd rental-radar
-python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/radar --version
-```
+| How | Command | Update with |
+|---|---|---|
+| uv (recommended) | `uv tool install git+https://github.com/jacotay7/rental-radar` | `uv tool upgrade rental-radar` |
+| pipx | `pipx install git+https://github.com/jacotay7/rental-radar` | `pipx upgrade rental-radar` |
+| From source (to hack on it) | `git clone https://github.com/jacotay7/rental-radar.git && cd rental-radar && python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"` | `git pull` |
+
+Check it with `radar --version`.
 
 Each search lives in its own folder (config + data), separate from the code. You can run several
 searches (say, one for you and one for a relative) from one checkout. Every command takes
@@ -106,31 +97,33 @@ The wizard asks for:
 | Move-in date | Bonus for listings available around then |
 | Dog (weight) / cat | Source filters and pet-policy scoring |
 | Max commute | Commute score and hard cap |
-| Recipients, SMTP server | Where results go |
-| Craigslist site | e.g. `sfbay`, `chicago`, `seattle`, `newyork`, `losangeles` (the subdomain of craigslist.org) |
+| Email recipients (optional) | Where emailed results go. Leave blank to use only chat/push |
+| Craigslist site | Suggested automatically: the nearest Craigslist site to your destination |
 
 It writes four files into the folder: `config.yaml`, `areas.yaml`, `portals.yaml` and `.env`.
 Everything can be answered with flags for scripted setups (`radar init --help`, `--yes` accepts
 defaults).
 
-### 3. Email setup (`.env`)
+### 3. Choose where results go (`.env`)
+
+Every channel you set up gets every message. Chat and push need just one line:
 
 ```bash
-SMTP_USER=you@gmail.com
-SMTP_PASSWORD=abcdefghijklmnop
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...      # Discord channel
+NTFY_URL=https://ntfy.sh/your-long-random-topic-name           # phone push, no account needed
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...         # Slack channel
+TELEGRAM_BOT_TOKEN=...  TELEGRAM_CHAT_ID=...                   # Telegram
+SMTP_USER=you@gmail.com  SMTP_PASSWORD=<app password>          # email (plus email.to in config.yaml)
 ```
 
-- **Gmail:** turn on 2-Step Verification, then create an app password at
-  <https://myaccount.google.com/apppasswords>. Port 465 is the default.
-- **Other providers:** set `email.smtp_host` and `email.smtp_port` in `config.yaml` (587 uses
-  STARTTLS). Fastmail, iCloud, Outlook/Microsoft 365 and most others work with an app password.
-- Recipients go in `email.to` in `config.yaml`. The sender can be one of them.
-- `.env` is created with `chmod 600` and is git-ignored. Never commit it.
+[docs/notifications.md](docs/notifications.md) walks through each one. Email has the richest format
+(photos, full pros and cons, the safety checklist). Gmail needs an app password, which in turn needs
+2-Step Verification. `.env` is created with `chmod 600` and is git-ignored. Never commit it.
 
 ### 4. Rate your neighborhoods (`areas.yaml`): the biggest quality lever
 
-Without ratings every listing gets the same neighborhood score, and the ranking leans on price,
-commute and size. Add your areas with a 1–10 score and short pros/cons:
+Without ratings the neighborhood weight is ignored, and the ranking leans entirely on price, commute,
+size and the listing text. Add your areas with a 1–10 score and short pros/cons:
 
 ```yaml
 neighborhoods:
@@ -146,11 +139,11 @@ city_defaults: {springfield: 6.5}
 
 ```bash
 radar doctor --smtp          # every line should be "ok"
-radar run --no-email         # collects everything; writes data/preview.html instead of emailing
+radar run --dry-run          # collects everything; writes data/preview.html instead of sending
 radar top                    # ranked list in the terminal
 radar show craigslist:7912345678   # full pros/cons + score breakdown for one listing
-radar preview --send --intro "Starter digest: the best of what's out there right now"
-radar baseline               # mark everything current as "already sent" so only new matches email
+radar preview --send --intro "Starter digest: the best of what's out there right now"   # email
+radar baseline               # mark everything current as "already sent" so only new matches go out
 radar schedule install       # hourly collection + daily digest
 ```
 
@@ -160,13 +153,14 @@ radar schedule install       # hourly collection + daily digest
 
 | Timer | Default | Does |
 |---|---|---|
-| `rental-radar-collect` | hourly, 6:05am–10:05pm | collect + score; emails **top picks** (score ≥ `top_pick_threshold`) right away |
-| `rental-radar-digest` | daily 7:30am | emails every other new match ≥ `email_threshold`, plus the top-20 still-available list |
+| `rental-radar-collect` | hourly, 6:05am–10:05pm | collect + score; sends **top picks** (score ≥ `top_pick_threshold`) right away |
+| `rental-radar-digest` | daily 7:30am | sends every other new match ≥ `email_threshold`, the top-20 still-available list, and warnings about any source that stopped working |
 
 Times use `schedule.timezone` (e.g. `America/Chicago`), or the machine's zone if unset. Use
 `radar schedule status` to see them and `radar schedule remove` to stop everything (config and data
 are kept). Logs: `journalctl --user -u rental-radar-collect -n 50`. On macOS or without systemd,
-`radar schedule cron` prints equivalent crontab lines.
+`radar schedule cron` prints equivalent crontab lines. The machine needs to be awake at those times: a
+home server, a Raspberry Pi or an always-on desktop works best.
 
 Found a place? `radar schedule remove`. 🎉
 
@@ -174,17 +168,18 @@ Found a place? `radar schedule remove`. 🎉
 
 | Command | What it does |
 |---|---|
+| `radar demo [--chat]` | Sample results from made-up listings, no setup needed |
 | `radar init [--example east-bay]` | Create a search folder (wizard or worked example) |
-| `radar doctor [--smtp] [--offline]` | Check config, credentials, network, schedule |
+| `radar doctor [--smtp] [--offline]` | Check config, channels, credentials, network, schedule, source health |
 | `radar geocode "<address>"` | Coordinates for an address (for config / areas) |
-| `radar run [--mode alerts\|digest\|all] [--no-email] [--no-collect]` | One full cycle |
-| `radar top [-n 40] [--all]` | Ranked list of active listings (`E` = already emailed) |
+| `radar run [--mode alerts\|digest\|all] [--dry-run] [--no-collect]` | One full cycle (`--dry-run` sends nothing) |
+| `radar top [-n 40] [--all]` | Ranked list of active listings (`E` = already sent) |
 | `radar show <uid> [--raw]` | Pros/cons, contact, score components and adjustments |
-| `radar mark <uid> interested\|rejected\|active` | Rejected listings are never emailed again |
+| `radar mark <uid> interested\|rejected\|active` | Rejected listings are never sent again |
 | `radar rescore` | Re-score everything after editing `config.yaml` or `areas.yaml` |
-| `radar preview [--send] [--intro "..."]` | Render (and optionally send) the current best matches |
-| `radar baseline` | Mark all current matches as already emailed |
-| `radar test-email` | Send a test message |
+| `radar preview [--send] [--intro "..."]` | Render (and optionally email) the current best matches |
+| `radar baseline` | Mark all current matches as already sent |
+| `radar test-notify` | Send a test message to every channel |
 | `radar schedule install\|remove\|status\|cron` | Manage the timers |
 
 ## How it works
@@ -195,7 +190,7 @@ Found a place? `radar schedule remove`. 🎉
  Realtor.com ┼─▶ collect ─▶ enrich ┼─ neighborhood (areas.yaml)          ┌─▶ ⭐ top-pick alert (hourly)
  PM portals ─┤   (dedupe,  │       └─ pets, yard, size, type, stairs...   │
  Alert email ┘    detail)  ▼                                              ├─▶ 📬 daily digest
-                   scam checks ─▶ score 0-100 + pros/cons ─▶ email ──────┤
+                   scam checks ─▶ score 0-100 + pros/cons ─▶ notify ─────┤
      (address, sale history, copied text,                                 └─▶ ⚠️ scam retraction
       rent vs. value, warning signs)
 ```
@@ -204,6 +199,7 @@ Found a place? `radar schedule remove`. 🎉
 - [docs/scoring.md](docs/scoring.md): every score component, weights, adjustments, hard caps, and how to tune them
 - [docs/scam-detection.md](docs/scam-detection.md): the fraud checks and why each one exists
 - [docs/sources.md](docs/sources.md): each listing source, its limits, and how to add a new one
+- [docs/notifications.md](docs/notifications.md): email, Discord, Slack, ntfy and Telegram setup
 - [docs/configuration.md](docs/configuration.md): full `config.yaml` reference
 - [docs/regions.md](docs/regions.md): building `areas.yaml` and `portals.yaml` for your area
 - [docs/saved-search-alerts.md](docs/saved-search-alerts.md): pulling in Zillow, HotPads, Trulia and others through their alert emails
@@ -223,7 +219,7 @@ around that; it reads the alert emails those sites send you instead.
 
 ## Tuning it to you
 
-The first emails will be about 80% right. Make them yours:
+The first results will be about 80% right. Make them yours:
 
 1. Run `radar show <uid>` on a listing that's ranked wrong, and look at the components and adjustments.
 2. Change the matching knob in `config.yaml`. For example: raise `scoring.weights.yard` if yards matter
@@ -234,6 +230,10 @@ The first emails will be about 80% right. Make them yours:
 [docs/scoring.md](docs/scoring.md#tuning-recipes) has a feedback → knob table.
 
 ## Working with an AI coding agent
+
+In Claude Code, two skills come with the repo: **`/new-search`** sets up a search end to end, and
+**`/tune-search`** turns feedback like "too many apartments" or "why is this one so high?" into config
+changes, showing the before and after.
 
 This repo is set up for agents like Claude Code, Codex, Cursor and Copilot. [AGENTS.md](AGENTS.md)
 gives them the map, the rules (privacy, no anti-bot circumvention, no surprise emails), and playbooks
@@ -254,31 +254,36 @@ changes, and adding sources. Try asking:
   scam checks are heuristics. A clean score is not a guarantee: never pay a deposit before a tour
   (in person or live video) and a signed lease.
 - **Sites change.** Sources scrape public pages and unofficial APIs that can change without notice.
-  `radar doctor` and the per-source counts in each run's log show when one breaks. See
-  [docs/sources.md](docs/sources.md).
+  When a source fails or suddenly finds far fewer listings than usual, the daily digest and
+  `radar doctor` say so. See [docs/sources.md](docs/sources.md).
 
 ## Project layout
 
 ```
 rental_radar/
   cli.py          radar command (init, doctor, schedule, run, top, show, ...)
-  pipeline.py     collect -> score -> scam checks -> retractions -> email
+  pipeline.py     collect -> score -> scam checks -> retractions -> notify
   analyze.py      scoring model, pros/cons, scam heuristics
   geo.py          geocoding, neighborhoods, drive/transit/bike commute
   sales.py        sale-history index + copied-description matching
   verify.py       address existence, property records, posting-removed checks
   emailer.py      HTML/text emails, SMTP
+  notify.py       delivery channels: email, Discord, Slack, ntfy, Telegram
+  demo.py         `radar demo` sample listings
   config.py       defaults, loading, validation
   sources/        craigslist, redfin, realtor, portals (AppFolio/Buildium/Rentvine), alerts (IMAP)
 examples/         east-bay (complete), minimal (Chicago, essentials only)
-docs/             architecture, scoring, scam detection, sources, configuration, regions, alerts
+docs/             architecture, scoring, scam detection, sources, notifications, configuration, regions, alerts
 tests/            pytest suite (offline)
+.claude/skills/   /new-search and /tune-search for Claude Code
 ```
 
 ## Contributing
 
 Issues and pull requests are welcome, especially new region examples (`examples/<region>/`), new
-property-manager platforms, and alert-email formats. Run `pytest` before sending changes, and see
+property-manager platforms, and alert-email formats. If a source stops working, the "source stopped
+working" issue template asks for exactly what's needed to fix it. Run `pytest` before sending changes,
+add a line to [CHANGELOG.md](CHANGELOG.md) for anything users will notice, and see
 [AGENTS.md](AGENTS.md) for conventions. Please don't submit changes that evade bot protection.
 
 ## License

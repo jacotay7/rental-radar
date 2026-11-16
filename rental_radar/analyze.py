@@ -551,6 +551,12 @@ def amenity_notes(text, listing, pros, cons):
 
 # ---------------------------------------------------------------- main entry
 
+def areas_rated(areas) -> bool:
+    """True if the areas file rates anything (neighborhoods or city defaults)."""
+    return bool(areas.get("neighborhoods") or areas.get("city_defaults"))
+
+
+
 def analyze(listing, free_flow_drive, cfg) -> tuple[float, dict]:
     """Score one listing. Returns (score 0-100, analysis dict). See docs/scoring.md."""
     lat, lon = listing["lat"], listing["lon"]
@@ -570,12 +576,16 @@ def analyze(listing, free_flow_drive, cfg) -> tuple[float, dict]:
     comps["yard"] = yard_score(listing, text, pros, cons)
     comps["size"] = size_score(listing, cfg, pros, cons)
     comps["home_type"] = home_type_score(listing, text, cfg, pros, cons)
-    comps["neighborhood"] = _clamp((nb["score"] - 3) / 6)  # 4.5 -> 0.25, 6 -> 0.5, 9+ -> 1.0
+    # Without any neighborhood ratings every listing would get the same default score, which only squashes
+    # the ranking toward the middle; drop the component instead (like `pets` without pets).
+    rated = areas_rated(cfg["_areas"])
+    if rated:
+        comps["neighborhood"] = _clamp((nb["score"] - 3) / 6)  # 4.5 -> 0.25, 6 -> 0.5, 9+ -> 1.0
     if nb["pros"]:
         pros.append(f"{nb['name']}: {nb['pros']}")
     if nb["cons"]:
         cons.append(f"{nb['name']}: {nb['cons']}")
-    if nb["score"] < sc["low_area_score"]:
+    if rated and nb["score"] < sc["low_area_score"]:
         cons.insert(0, f"{nb['name']} is rated {nb['score']:g}/10 in your areas file")
     amenity_notes(text, listing, pros, cons)
     layout_pen = stairs_penalty(text, listing, cfg, cons)

@@ -6,8 +6,8 @@ whether you're changing the code or helping a person run their own rental search
 ## What this is
 
 Rental Radar is a self-hosted rental search. `radar run` collects listings from several sources,
-scores them 0–100 against the user's config, screens them for scams, and emails the best ones over
-SMTP. A user's search is a **folder** (config.yaml, areas.yaml, portals.yaml, .env, data/) separate
+scores them 0–100 against the user's config, screens them for scams, and sends the best ones by email
+and/or Discord, Slack, ntfy or Telegram. A user's search is a **folder** (config.yaml, areas.yaml, portals.yaml, .env, data/) separate
 from this code. Start with [README.md](README.md), then [docs/architecture.md](docs/architecture.md).
 
 ## Commands
@@ -16,7 +16,8 @@ from this code. Start with [README.md](README.md), then [docs/architecture.md](d
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # or: uv venv && uv pip install -e ".[dev]"
 .venv/bin/pytest -q                       # offline test suite; run before and after every change
 .venv/bin/radar --config <dir>/config.yaml doctor --offline
-.venv/bin/radar --config <dir>/config.yaml run --no-email --detail-limit 20   # live, but sends nothing
+.venv/bin/radar demo --no-open --chat      # offline sample output, no config needed
+.venv/bin/radar --config <dir>/config.yaml run --dry-run --detail-limit 20   # live, but sends nothing
 .venv/bin/radar --config <dir>/config.yaml rescore && .venv/bin/radar --config <dir>/config.yaml top
 ```
 
@@ -24,17 +25,20 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # or: uv venv && uv
 
 | Path | What |
 |---|---|
-| `rental_radar/pipeline.py` | run cycle: collect → score → scam checks → retractions → email |
+| `rental_radar/pipeline.py` | run cycle: collect → score → scam checks → retractions → notify; source health |
 | `rental_radar/analyze.py` | **the scoring model** and pros/cons; scam heuristics (`scam_check`, `hijack_signals`, `verify_flags`) |
 | `rental_radar/config.py` | `DEFAULTS` (every config key and its default), `finalize`, `validate` |
 | `rental_radar/geo.py` | geocoding, neighborhoods, OSRM drive time, transit, bike |
 | `rental_radar/sales.py`, `verify.py` | sale-history index, copied-text detection, address and property checks |
 | `rental_radar/emailer.py` | email rendering and SMTP |
+| `rental_radar/notify.py` | delivery channels (email, Discord, Slack, ntfy, Telegram); chat formatting |
+| `rental_radar/demo.py` | `radar demo` sample listings |
 | `rental_radar/sources/` | one module per source; registry in `sources/__init__.py` |
 | `rental_radar/cli.py`, `templates.py` | `radar` command, `init` wizard templates |
 | `examples/` | `east-bay` (complete), `minimal` |
 | `docs/` | architecture, scoring, scam-detection, sources, configuration, regions, saved-search-alerts |
 | `tests/` | pytest; `conftest.make_cfg()` builds a config without files |
+| `.claude/skills/` | `/new-search`, `/tune-search`: the setup and tuning playbooks as Claude Code skills |
 
 ## Hard rules
 
@@ -52,9 +56,10 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # or: uv venv && uv
 4. **Be polite to sources.** All HTTP goes through `rental_radar.http.get` with a `min_interval`
    (≥ 1 s for HTML pages). Don't parallelize requests to one host or shorten the schedule below
    hourly.
-5. **Don't send email the user didn't ask for.** Use `--no-email` (writes `data/preview.html`) while
-   developing or testing. `radar test-email`, `preview --send` and a live `run` email real people:
-   ask first. The same goes for `radar schedule install/remove` (they change the user's systemd
+5. **Don't send messages the user didn't ask for.** Use `--dry-run` (writes `data/preview.html` and
+   `preview.chat.txt`) while developing or testing. `radar test-notify`, `preview --send` and a live
+   `run` message real people on every configured channel: ask first. Never ask users to paste webhook
+   URLs, tokens or passwords into the chat; they put them in `.env` themselves. The same goes for `radar schedule install/remove` (they change the user's systemd
    setup).
 6. **Don't silently weaken scam checks.** If one misfires on a genuine listing, narrow it (and add a
    test with the false positive), rather than removing it. Explain the trade-off to the user.
@@ -73,13 +78,14 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # or: uv venv && uv
 - Keep the docs in sync. A change to scoring needs `docs/scoring.md`; to scam checks,
   `docs/scam-detection.md`; to sources, `docs/sources.md` and the README table; to config keys,
   `docs/configuration.md`.
+- Add a line under `## [Unreleased]` in `CHANGELOG.md` for every user-visible change.
 - Add or adjust a test for every behavior change. Tests must stay offline: monkeypatch
   `geo.drive_minutes` and use fixtures.
 
 ## Playbooks
 
 ### Set up a search for someone
-Interview them (one short batch of questions, not a form), then run `radar init` with flags
+(Claude Code: the `/new-search` skill is this playbook in full.) Interview them (one short batch of questions, not a form), then run `radar init` with flags
 (`radar init --help`):
 
 1. **Destination** they commute to, and the **max one-way commute**. Do they drive, take transit,
@@ -90,12 +96,12 @@ Interview them (one short batch of questions, not a form), then run `radar init`
    laundry), mobility (stairs).
 5. **Move-in date**, and how flexible it is.
 6. **Areas**: neighborhoods they love, ones to avoid, and what "good neighborhood" means to them.
-7. **Recipients**, and which email account sends (they'll need an app password: walk them through it,
-   but never ask them to paste the password into chat; they put it in `.env` themselves).
+7. **Where results go**: Discord, Slack, ntfy (phone push), Telegram and/or email. Walk them through
+   [docs/notifications.md](docs/notifications.md); they paste the secret into `.env` themselves.
 
 Then translate their priorities into `scoring.weights` (ranked priorities → weights roughly
 20/17/14/12/10/8/5), fill `areas.yaml` (next playbook), run `radar doctor`, run
-`radar run --no-email`, show them the top of `radar top`, and adjust before scheduling anything.
+`radar run --dry-run`, show them the top of `radar top`, and adjust before scheduling anything.
 
 ### Build areas.yaml for a new region
 1. Read [docs/regions.md](docs/regions.md) and use `examples/east-bay/areas.yaml` as the model.
@@ -119,7 +125,7 @@ and confirm it loads and lists homes in their region before adding it. Aim for t
 most single-family homes. Report how many you verified versus guessed (only add verified ones).
 
 ### Turn feedback into config
-Use the table in [docs/scoring.md](docs/scoring.md#tuning-recipes). Workflow:
+(Claude Code: `/tune-search`.) Use the table in [docs/scoring.md](docs/scoring.md#tuning-recipes). Workflow:
 `radar show <uid>` on an example they disagree with → identify the component or adjustment
 responsible → change the smallest knob that fixes it → `radar rescore` → show the before/after rank of
 a few listings → confirm with the user. Prefer config changes over code changes. When feedback

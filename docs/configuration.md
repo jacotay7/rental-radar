@@ -7,7 +7,7 @@ A search is a folder containing:
 | `config.yaml` | everything below | your choice (contains recipient emails) |
 | `areas.yaml` | neighborhood ratings, transit stations, dog parks ([regions.md](regions.md)) | yes |
 | `portals.yaml` | property-manager portals ([sources.md](sources.md#property-manager-portals-sourcesportalspy--portalsyaml)) | yes |
-| `.env` | SMTP / IMAP credentials | **never** |
+| `.env` | webhook URLs, SMTP / IMAP credentials | **never** |
 | `data/` | SQLite database, previews | no |
 
 `radar` finds the config through `--config PATH`, then `$RADAR_CONFIG`, then `./config.yaml`. Paths
@@ -112,13 +112,22 @@ Set the `too_cheap_*` values from your market: roughly half of typical rent for 
 
 | Key | Default | Meaning |
 |---|---|---|
-| `to` | `[]` | recipients |
+| `to` | `[]` | recipients (empty = no email; use chat/push channels instead) |
 | `from` | `SMTP_USER` | sender address |
 | `smtp_host` / `smtp_port` | `smtp.gmail.com` / `465` | 465 = implicit TLS, anything else = STARTTLS |
 | `max_per_email` | `15` | top-pick alerts |
 | `digest_max` | `30` | new listings per digest |
 | `digest_top` | `20` | length of the "still available" list |
 | `safety_tips` | `[]` | extra region-specific tips (county assessor URL, deposit laws, ...) |
+
+## `notify`
+
+Chat and push channels are switched on by their secrets in `.env` (below). Email is on when `email.to`
+is set. See [notifications.md](notifications.md).
+
+| Key | Default | Meaning |
+|---|---|---|
+| `max_listings` | `10` | new listings (and "still available" rows) per chat message batch; the email has everything |
 
 ## `sources`
 
@@ -155,6 +164,14 @@ Re-run `radar schedule install` after changing these.
 ## `.env`
 
 ```bash
+# Chat / push channels (each one is optional; see notifications.md)
+DISCORD_WEBHOOK_URL=
+SLACK_WEBHOOK_URL=
+NTFY_URL=https://ntfy.sh/your-long-random-topic-name
+NTFY_TOKEN=                  # only for a private ntfy server
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+# Email
 SMTP_USER=you@gmail.com
 SMTP_PASSWORD=app-password
 # optional, for reading alert emails from a different mailbox:

@@ -10,7 +10,25 @@ from datetime import datetime, timezone
 from .. import http
 
 SEARCH = "https://sapi.craigslist.org/web/v8/postings/search/full"
+AREAS = "https://reference.craigslist.org/Areas"   # every Craigslist site, with center coordinates
 PAGE_CAP = 360  # the API returns at most this many per query; we split price bands to stay under it
+
+
+def nearest_site(lat: float, lon: float) -> dict | None:
+    """The US Craigslist site whose center is closest to (lat, lon), for the setup wizard.
+
+    Returns {site, name, timezone, km} or None if the area list can't be fetched."""
+    from ..geo import km
+    try:
+        areas = http.get(AREAS, timeout=20, retries=1, min_interval=0).json()
+    except Exception:
+        return None
+    best = min((a for a in areas if a.get("Country") == "US" and a.get("Latitude") is not None),
+               key=lambda a: km(lat, lon, a["Latitude"], a["Longitude"]), default=None)
+    if not best:
+        return None
+    return {"site": best["Hostname"], "name": best.get("Description") or best["Hostname"],
+            "timezone": best.get("Timezone"), "km": km(lat, lon, best["Latitude"], best["Longitude"])}
 
 
 def _query(cfg, min_price, max_price):

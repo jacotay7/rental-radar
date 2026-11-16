@@ -2,7 +2,8 @@
 # (Oakland, Berkeley, Alameda, El Cerrito, Lamorinda...), commuting to downtown Oakland.
 # This is the configuration Rental Radar was originally built around. Copy it with
 #   radar init --example east-bay
-# then change `destination`, `email.to` and anything else that doesn't fit you.
+# then change `destination` and anything else that doesn't fit you, and set up where results go
+# (a Discord/Slack/ntfy/Telegram line in .env, and/or `email.to` below; see docs/notifications.md).
 
 search:
   label: "East Bay rentals"
@@ -74,7 +75,7 @@ scam:
   too_cheap_house_rent: 2600   # a 3BR+ house in a well-rated area under this is flagged
 
 email:
-  to: ["you@example.com"]
+  to: []                       # e.g. ["you@example.com"]; empty = chat/push only (set up in .env)
   smtp_host: "smtp.gmail.com"
   smtp_port: 465
   safety_tips:

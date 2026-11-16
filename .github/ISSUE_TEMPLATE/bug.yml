@@ -1,0 +1,26 @@
+name: Bug report
+description: Something else doesn't work as documented (scoring, setup, notifications, scheduling...).
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: "**Remove email addresses, webhook URLs, tokens, passwords and your home or work address before pasting.**"
+  - type: input
+    id: version
+    attributes:
+      label: Version and OS
+      placeholder: rental-radar 0.2.0, Ubuntu 24.04, Python 3.12
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Command and output
+      description: The command you ran and its output. For a scoring question, `radar show <uid>` output.
+      render: text

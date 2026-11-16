@@ -12,8 +12,9 @@ from datetime import date
 from pathlib import Path
 from string import Template
 
-from . import __version__, db, emailer, geo, pipeline, templates
-from .config import EXAMPLES_DIR, config_path, imap_credentials, load_config, smtp_credentials, validate
+from . import __version__, db, emailer, geo, notify, pipeline, templates
+from .config import (EXAMPLES_DIR, chat_secrets_hint, config_path, imap_credentials, load_config,
+                     smtp_credentials, validate)
 
 log = logging.getLogger("radar")
 
@@ -71,7 +72,8 @@ def cmd_init(args):
                 shutil.copy(f, outdir / f.name)
         _write_env(outdir)
         print(f"Copied the {args.example} example into {outdir}.\n"
-              "Next: edit destination + email.to in config.yaml, fill in .env, then run `radar doctor`.")
+              "Next: edit destination in config.yaml, set up where results go in .env (docs/notifications.md),\n"
+              "then run `radar doctor`.")
         return
 
     y = args.yes
@@ -115,14 +117,24 @@ def cmd_init(args):
     cat = args.cat or (not y and _yes_no("Do you have a cat?", False, y))
     max_commute = args.max_commute or _ask("Longest acceptable one-way commute, minutes", 35, y, int)
 
-    emails = args.email or _ask("Email address(es) to send results to (comma-separated)", "", y)
+    emails = args.email or _ask("Email address(es) to send results to, comma-separated "
+                                "(blank = chat/push only, set up in .env)", "", y)
     email_to = [e.strip() for e in (emails or "").split(",") if e.strip()]
-    smtp_host = args.smtp_host or _ask("SMTP server for sending (Gmail default)", "smtp.gmail.com", y)
+    smtp_host = args.smtp_host or (_ask("SMTP server for sending (Gmail default)", "smtp.gmail.com", y)
+                                   if email_to else "smtp.gmail.com")
     smtp_port = 465 if smtp_host == "smtp.gmail.com" else _ask("SMTP port (465 SSL / 587 STARTTLS)", 587, y, int)
 
+    near = None
+    if args.craigslist_site is None:
+        from .sources.craigslist import nearest_site
+        near = nearest_site(lat, lon)
+        if near:
+            far = " (far from your destination; check it)" if near["km"] > 120 else ""
+            print(f"  Nearest Craigslist site: {near['site']} ({near['name']}, {near['km']:.0f} km away){far}")
     cl_site = args.craigslist_site if args.craigslist_site is not None else _ask(
-        "Craigslist site subdomain, e.g. sfbay / chicago / seattle (blank = skip Craigslist)", "", y)
+        "Craigslist site subdomain (blank = skip Craigslist)", (near or {}).get("site", ""), y)
     cl_postal = (match or {}).get("zip")
+    tz = (near or {}).get("timezone")
 
     values = dict(
         label=label, state=state.upper(), move_in=f'"{move_in}"' if move_in else "null",
@@ -138,7 +150,7 @@ def cmd_init(args):
         email_to=_yaml_list(email_to), smtp_host=smtp_host, smtp_port=smtp_port,
         cl_enabled=str(bool(cl_site)).lower(), cl_site=json.dumps(cl_site) if cl_site else "null",
         cl_postal=json.dumps(cl_postal) if cl_postal else "null", cl_distance=max(5, round(radius / 1.609)),
-        timezone="null",
+        timezone=json.dumps(tz) if tz else "null",
     )
     cfg_file.write_text(Template(templates.CONFIG).safe_substitute(values))
     for name, body in (("areas.yaml", templates.AREAS), ("portals.yaml", templates.PORTALS)):
@@ -147,11 +159,13 @@ def cmd_init(args):
     _write_env(outdir)
     print(f"\nWrote {cfg_file}, areas.yaml, portals.yaml and .env in {outdir}.")
     print("Next steps:\n"
-          "  1. Put your SMTP login in .env (Gmail: create an app password).\n"
+          "  1. Set up where results go, in .env: a Discord/Slack/ntfy/Telegram webhook (one line), and/or\n"
+          "     your SMTP login for email (Gmail: create an app password). See docs/notifications.md.\n"
           "  2. Rate your neighborhoods in areas.yaml (docs/regions.md), the biggest lever on quality.\n"
           "  3. radar doctor              # check everything\n"
           "  4. radar run --no-email      # first collection, writes data/preview.html\n"
-          "  5. radar schedule install    # hourly top picks + daily digest")
+          "  5. radar test-notify         # check that messages reach you\n"
+          "  6. radar schedule install    # hourly top picks + daily digest")
 
 
 def _write_env(target: Path):
@@ -191,12 +205,19 @@ def cmd_doctor(args):
     n_nb = len(areas["neighborhoods"])
     line("ok" if n_nb else "warn", f"areas: {n_nb} neighborhoods, {len(areas['city_defaults'])} city defaults, "
          f"{len(areas['transit_stations'])} transit stations, {len(areas['dog_parks'])} dog parks"
-         + ("" if n_nb else " (every listing gets the default neighborhood score; see docs/regions.md)"))
+         + ("" if n_nb else (" (no neighborhood ratings, so the neighborhood weight is ignored and areas "
+                             "don't affect ranking; rate them in areas.yaml, see docs/regions.md)"
+                             if not areas["city_defaults"] else " (only city defaults; see docs/regions.md)")))
     enabled = [k for k, v in cfg["sources"].items() if v.get("enabled")]
     line("ok" if enabled else "FAIL", f"sources enabled: {', '.join(enabled) or 'none'}")
+    active = notify.channels(cfg)
+    line("ok" if active else "FAIL", f"notification channels: {', '.join(active) or 'none'}"
+         + ("" if active else f" (set email.to in config.yaml, or {chat_secrets_hint()} in .env)"))
     user, pw = smtp_credentials()
-    if not (user and pw):
-        line("FAIL", "SMTP_USER / SMTP_PASSWORD missing from .env")
+    if "email" not in active:
+        pass
+    elif not (user and pw):
+        line("FAIL", "email.to is set but SMTP_USER / SMTP_PASSWORD are missing from .env")
     elif args.smtp:
         import smtplib
         import ssl
@@ -213,8 +234,7 @@ def cmd_doctor(args):
         except Exception as ex:
             line("FAIL", f"SMTP login failed: {ex}")
     else:
-        line("ok", "SMTP credentials present (add --smtp to test the login)")
-    line("ok" if cfg["email"]["to"] else "FAIL", f"email.to: {len(cfg['email']['to'] or [])} recipient(s)")
+        line("ok", f"SMTP credentials present for {len(cfg['email']['to'])} recipient(s) (add --smtp to test the login)")
     if "alerts" in enabled:
         iu, ip = imap_credentials()
         if not (iu and ip):
@@ -254,6 +274,8 @@ def cmd_doctor(args):
     last = conn.execute("SELECT finished, summary FROM runs ORDER BY finished DESC LIMIT 1").fetchone()
     line("ok", f"database: {n} listings in {cfg['_data_dir']}/rentals.db"
          + (f"; last run {last['finished']}" if last else "; no runs yet"))
+    for w in pipeline.source_health(conn, cfg):
+        line("warn", w)
     if shutil.which("systemctl"):
         prefix = cfg["schedule"]["unit_prefix"]
         r = subprocess.run(["systemctl", "--user", "list-timers", "--all", f"{prefix}*"], capture_output=True, text=True)
@@ -426,12 +448,19 @@ def cmd_mark(args):
     print("Updated." if cur.rowcount else f"not found: {args.uid}")
 
 
-def cmd_test_email(args):
+def cmd_demo(args):
+    import tempfile
+    from . import demo
+    out = Path(args.out) if args.out else Path(tempfile.gettempdir()) / "rental-radar-demo.html"
+    demo.run(out, open_browser=not args.no_open, chat=args.chat)
+
+
+def cmd_test_notify(args):
     cfg = load_config(args.config)
-    msg = emailer.message(f"{cfg['search']['label']}: test email",
-                          "If you can read this, Rental Radar can reach you.", None, cfg)
-    emailer.send(msg, cfg)
-    print("Sent a test email to", msg["To"])
+    done = notify.send_test(cfg)
+    missed = [c for c in notify.channels(cfg) if c not in done]
+    print(f"Sent a test message via {', '.join(done)}."
+          + (f" Failed: {', '.join(missed)} (see the error above)." if missed else ""))
 
 
 # ---------------------------------------------------------------- entry point
@@ -443,6 +472,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("-v", "--verbose", action="store_true")
     p.add_argument("--version", action="version", version=f"rental-radar {__version__}")
     sub = p.add_subparsers(dest="cmd", required=True)
+
+    dm = sub.add_parser("demo", help="see a sample results email built from made-up listings (no setup needed)")
+    dm.add_argument("--out", help="where to write the HTML (default: your temp folder)")
+    dm.add_argument("--no-open", action="store_true", help="don't open it in a browser")
+    dm.add_argument("--chat", action="store_true", help="also print the chat/push (Discord, ntfy, ...) version")
 
     i = sub.add_parser("init", help="create config.yaml and friends (interactive wizard)")
     i.add_argument("--dir", default=".", help="directory to create the files in (default: current)")
@@ -468,11 +502,12 @@ def build_parser() -> argparse.ArgumentParser:
     sc = sub.add_parser("schedule", help="install/remove systemd timers, or print crontab lines")
     sc.add_argument("action", choices=["install", "remove", "status", "cron"])
 
-    r = sub.add_parser("run", help="collect, score, and email new matches")
+    r = sub.add_parser("run", help="collect, score, and send new matches")
     r.add_argument("--mode", choices=["all", "alerts", "digest"], default="all",
                    help="alerts: email only top picks; digest: everything new above the threshold plus the "
                         "running top list; all (default): everything new above the threshold")
-    r.add_argument("--no-email", action="store_true", help="write preview HTML instead of sending")
+    r.add_argument("--no-email", "--dry-run", dest="no_email", action="store_true",
+                   help="send nothing; write data/preview.html (and preview.chat.txt) instead")
     r.add_argument("--preview", help="path for preview HTML (with --no-email)")
     r.add_argument("--no-collect", action="store_true", help="skip collection; just score and email")
     r.add_argument("--detail-limit", type=int, default=300, help="max detail pages per source per run")
@@ -488,7 +523,7 @@ def build_parser() -> argparse.ArgumentParser:
     pv = sub.add_parser("preview", help="render (and optionally send) an email of current top matches")
     pv.add_argument("-n", type=int, default=15)
     pv.add_argument("--out")
-    pv.add_argument("--send", action="store_true")
+    pv.add_argument("--send", action="store_true", help="email it (email channel only)")
     pv.add_argument("--subject-prefix", default="")
     pv.add_argument("--intro", default="", help="note shown at the top of the email")
 
@@ -496,15 +531,16 @@ def build_parser() -> argparse.ArgumentParser:
     m.add_argument("uid")
     m.add_argument("status", choices=["interested", "rejected", "active"])
 
-    sub.add_parser("test-email", help="send a test email")
+    sub.add_parser("test-notify", aliases=["test-email"],
+                   help="send a test message to every channel (email, Discord, Slack, ntfy, Telegram)")
     sub.add_parser("rescore", help="re-score everything (after editing config.yaml or areas.yaml)")
     sub.add_parser("baseline", help="mark all current matches as already emailed")
     return p
 
 
-COMMANDS = {"init": cmd_init, "geocode": cmd_geocode, "doctor": cmd_doctor, "schedule": cmd_schedule,
+COMMANDS = {"demo": cmd_demo, "init": cmd_init, "geocode": cmd_geocode, "doctor": cmd_doctor, "schedule": cmd_schedule,
             "run": cmd_run, "top": cmd_top, "show": cmd_show, "preview": cmd_preview, "mark": cmd_mark,
-            "test-email": cmd_test_email, "rescore": cmd_rescore, "baseline": cmd_baseline}
+            "test-notify": cmd_test_notify, "test-email": cmd_test_notify, "rescore": cmd_rescore, "baseline": cmd_baseline}
 
 
 def main(argv=None):

@@ -158,27 +158,41 @@ def tips(cfg) -> list[str]:
     return SAFETY_TIPS + list(cfg["email"].get("safety_tips") or [])
 
 
-def build_email(items, cfg, subject_prefix: str = "", intro: str = "", kind: str = "all", top=None) -> EmailMessage:
-    """items: (row, data, analysis) tuples sorted best-first (may be empty for a digest with only `top`).
-    top: best still-open listings for the daily digest's running list."""
+def subject_line(items, cfg, kind="all", top=None, warnings=None, prefix="") -> str:
+    """Email subject, also used as the title of chat notifications."""
     label = cfg["search"]["label"]
     top_t = cfg["scoring"]["top_pick_threshold"]
-    top = top or []
-    n = len(items)
+    top, warnings = top or [], warnings or []
     if kind == "alerts":
-        subject_prefix = subject_prefix or f"⭐ {label}: top pick: "
+        prefix = prefix or f"⭐ {label}: top pick: "
     elif kind == "digest":
         today = date.today()
-        subject_prefix = subject_prefix or f"{label} digest ({today:%b} {today.day}): "
+        prefix = prefix or f"{label} digest ({today:%b} {today.day}): "
     else:
-        subject_prefix = subject_prefix or f"{label}: "
+        prefix = prefix or f"{label}: "
+    n = len(items)
     if items:
         best_row, best_d, best_a = items[0]
         star = "⭐ " if best_row["score"] >= top_t and kind != "alerts" else ""
-        subject = subject_prefix + (f"{star}{n} new match{'es' if n > 1 else ''}: best {headline(best_d, best_a)} "
-                                    f"(score {best_row['score']:.0f})")
+        subject = prefix + (f"{star}{n} new match{'es' if n > 1 else ''}: best {headline(best_d, best_a)} "
+                            f"(score {best_row['score']:.0f})")
     else:
-        subject = subject_prefix + f"no new matches · top {len(top)} still available"
+        subject = prefix + f"no new matches · top {len(top)} still available"
+    if warnings:
+        subject += f" · ⚠ {len(warnings)} source problem{'s' if len(warnings) > 1 else ''}"
+    return subject
+
+
+def build_email(items, cfg, subject_prefix: str = "", intro: str = "", kind: str = "all", top=None,
+                warnings=None) -> EmailMessage:
+    """items: (row, data, analysis) tuples sorted best-first (may be empty for a digest with only `top`).
+    top: best still-open listings for the daily digest's running list.
+    warnings: source-health problems (pipeline.source_health) shown in a banner at the top."""
+    warnings = warnings or []
+    top_t = cfg["scoring"]["top_pick_threshold"]
+    top = top or []
+    n = len(items)
+    subject = subject_line(items, cfg, kind, top, warnings, subject_prefix)
     cards = "".join(card_html(r, d, a, cfg, r["score"] >= top_t) for r, d, a in items)
     tip_html = "".join(f"<li>{_e(t)}</li>" for t in tips(cfg))
     new_html = (f"""<h2 style="font-size:18px;margin:16px 0 4px">New since the last digest</h2>""" if top else "") + (
@@ -192,8 +206,14 @@ def build_email(items, cfg, subject_prefix: str = "", intro: str = "", kind: str
                     '<p style="font-size:13px;color:#555;margin:0 0 6px">Best of everything being tracked that is '
                     'still listed (⚠ = scam warning signs, check first). Full details were in earlier emails.</p>' + th)
         top_text = f"\n\nTOP {len(top)} STILL AVAILABLE:\n" + tt
+    warn_html = ""
+    if warnings:
+        warn_html = ('<div style="font-size:14px;background:#fde7ea;padding:8px 12px;border-radius:6px">'
+                     '<b>⚠ Source problems</b> (results may be incomplete)<ul style="margin:4px 0">'
+                     + "".join(f"<li>{_e(w)}</li>" for w in warnings) + "</ul></div>")
     body = f"""<html><body style="max-width:640px;margin:auto;font-family:Arial,sans-serif">
 {f'<p style="font-size:14px;background:#fff6e0;padding:8px;border-radius:6px">{_e(intro)}</p>' if intro else ''}
+{warn_html}
 {new_html}
 {cards}
 {top_html}
@@ -201,7 +221,8 @@ def build_email(items, cfg, subject_prefix: str = "", intro: str = "", kind: str
 <b>Rental safety checklist</b><ul>{tip_html}</ul>
 Neighborhood scores are rough judgments. Check the specific block on a crime map and in Street View.
 </div></body></html>"""
-    text = "\n\n".join(card_text(r, d, a, cfg) for r, d, a in items) + top_text + "\n\nSAFETY:\n" + \
+    warn_text = "".join(f"⚠ SOURCE PROBLEM: {w}\n" for w in warnings) + ("\n" if warnings else "")
+    text = warn_text + "\n\n".join(card_text(r, d, a, cfg) for r, d, a in items) + top_text + "\n\nSAFETY:\n" + \
         "\n".join(f"- {t}" for t in tips(cfg))
     return message(subject, text, body, cfg)
 

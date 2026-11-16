@@ -129,6 +129,10 @@ Converted with `(score − 3) / 6`: 3 → 0, 4.5 → 0.25, 6 → 0.5, 9+ → 1.0
 `low_area_score` (5.5) get a warning con. The neighborhood's own pros and cons from `areas.yaml` are
 copied into the listing's pros/cons.
 
+If `areas.yaml` has no neighborhoods and no `city_defaults`, this component is dropped (like `pets`
+with no pets) and the other weights are renormalized. Otherwise every listing would get the same
+default score, which squashes the whole ranking toward the middle. `radar doctor` warns about it.
+
 ## Adjustments
 
 | Adjustment | Rule |

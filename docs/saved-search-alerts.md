@@ -61,7 +61,7 @@ Zillow's "homes you might like") are detected and treated as *pet policy unknown
 
 ```bash
 radar doctor            # "IMAP login works (alerts)"
-radar -v run --no-email # look for "alerts: N emails scanned, M listings parsed"
+radar -v run --dry-run # look for "alerts: N emails scanned, M listings parsed"
 radar top --all | grep -E "zillow|hotpads|trulia|zumper"
 ```
 

@@ -1,0 +1,47 @@
+name: A listing source stopped working
+description: Craigslist, Redfin, Realtor.com, a property-manager portal or alert emails return errors or far fewer listings than before.
+labels: ["source"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks! Sites change without notice, so these reports are how sources get fixed.
+        **Before pasting anything, remove email addresses, webhook URLs, tokens and passwords.**
+  - type: dropdown
+    id: source
+    attributes:
+      label: Which source?
+      options: [craigslist, redfin, realtor, pm-portal, alerts (email), other]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `radar --version`
+      placeholder: rental-radar 0.2.0
+    validations:
+      required: true
+  - type: input
+    id: region
+    attributes:
+      label: Search area
+      description: Metro area or Craigslist site (e.g. "chicago"). For pm-portal, the platform and subdomain.
+  - type: textarea
+    id: doctor
+    attributes:
+      label: "`radar doctor` output"
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log lines for that source
+      description: From `radar -v run --dry-run` (or `journalctl --user -u rental-radar-collect -n 200`). The run summary's counts for that source help too.
+      render: text
+  - type: textarea
+    id: since
+    attributes:
+      label: When did it stop working?
+      description: The last date it worked, if you know it, and anything that changed (config, version, network).

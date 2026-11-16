@@ -12,7 +12,9 @@ import yaml
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 REPO_DIR = PACKAGE_DIR.parent
-EXAMPLES_DIR = REPO_DIR / "examples"
+# Packaged copy (wheel installs) first, then the repo checkout (editable installs).
+EXAMPLES_DIR = next((d for d in (PACKAGE_DIR / "examples", REPO_DIR / "examples") if d.is_dir()),
+                    REPO_DIR / "examples")
 
 # Everything here can be overridden in config.yaml. Keep in sync with docs/configuration.md.
 DEFAULTS: dict = {
@@ -105,6 +107,9 @@ DEFAULTS: dict = {
         "digest_top": 20,              # daily digest: "top N still available" running list
         "safety_tips": [],             # extra region-specific tips appended to the built-in list
     },
+    "notify": {                        # chat/push channels; turned on by their secrets in .env
+        "max_listings": 10,            # new listings (and "still available" rows) per chat notification
+    },
     "sources": {
         "craigslist": {"enabled": False, "site": None, "postal": None, "distance_mi": 20},
         "redfin": {"enabled": True, "market": None},
@@ -167,6 +172,10 @@ def secret(*names: str) -> str | None:
 
 def smtp_credentials() -> tuple[str | None, str | None]:
     return secret("SMTP_USER", "GMAIL_USER"), secret("SMTP_PASSWORD", "GMAIL_APP_PASSWORD")
+
+
+def chat_secrets_hint() -> str:
+    return "DISCORD_WEBHOOK_URL, SLACK_WEBHOOK_URL, NTFY_URL or TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID"
 
 
 def imap_credentials() -> tuple[str | None, str | None]:

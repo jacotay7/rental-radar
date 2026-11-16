@@ -142,8 +142,21 @@ portals: []
 
 ENV = """\
 # Secrets for Rental Radar. Never commit this file (it is in .gitignore).
-# SMTP account that SENDS the emails. For Gmail: turn on 2-Step Verification, then create an
-# app password at https://myaccount.google.com/apppasswords and paste it below.
+# Results go to every channel set up here (email needs email.to in config.yaml too).
+# The quickest is a chat webhook: paste one URL and you're done. See docs/notifications.md.
+
+# Discord: Server settings -> Integrations -> Webhooks -> New Webhook -> Copy Webhook URL
+# DISCORD_WEBHOOK_URL=
+# Slack: create an app with an Incoming Webhook (api.slack.com/messaging/webhooks)
+# SLACK_WEBHOOK_URL=
+# ntfy push notifications (phone app, no account): pick a long, unguessable topic name
+# NTFY_URL=https://ntfy.sh/your-long-random-topic-name
+# Telegram: create a bot with @BotFather, message it once, then get your chat id (see docs)
+# TELEGRAM_BOT_TOKEN=
+# TELEGRAM_CHAT_ID=
+
+# Email: the SMTP account that SENDS the emails. For Gmail: turn on 2-Step Verification, then create
+# an app password at https://myaccount.google.com/apppasswords and paste it below.
 SMTP_USER=
 SMTP_PASSWORD=
 # Optional: a different mailbox to read saved-search alert emails from (defaults to the SMTP account).

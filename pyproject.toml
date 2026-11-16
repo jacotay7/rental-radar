@@ -1,6 +1,6 @@
 [project]
 name = "rental-radar"
-version = "0.1.0"
+version = "0.2.0"
 description = "Self-hosted rental search: collects listings from many sources, scores them against your priorities, screens out scams, and emails you the best ones."
 readme = "README.md"
 license = {text = "MIT"}
@@ -27,6 +27,11 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["rental_radar"]
+
+# Ship the worked examples inside the package so `radar init --example` and `radar demo` work
+# from a plain (non-editable) install such as `uv tool install` or `pipx install`.
+[tool.hatch.build.targets.wheel.force-include]
+"examples" = "rental_radar/examples"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

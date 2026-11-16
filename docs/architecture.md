@@ -7,7 +7,7 @@ database.
 ## The run cycle (`pipeline.run`)
 
 ```
-collect ──▶ score_all ──▶ scam_checks ──▶ retractions ──▶ select ──▶ email
+collect ──▶ score_all ──▶ scam_checks ──▶ retractions ──▶ select ──▶ notify
 ```
 
 1. **Collect** (`pipeline.collect`). For each enabled source in `sources/`:
@@ -25,7 +25,7 @@ collect ──▶ score_all ──▶ scam_checks ──▶ retractions ──�
 3. **Scam checks** (`pipeline.scam_checks`): refresh the sale-history index (about daily), verify
    addresses and look up property records for plausible candidates, re-open DIY-platform postings,
    then re-score. See [scam-detection.md](scam-detection.md).
-4. **Retractions**: email a warning for anything already sent that now looks like a scam.
+4. **Retractions**: send a warning about anything already sent that now looks like a scam.
 5. **Select**:
    - `--mode alerts` (hourly): un-emailed listings ≥ `top_pick_threshold`, up to `max_per_email`.
    - `--mode digest` (daily, usually with `--no-collect`): un-emailed listings ≥ `email_threshold`,
@@ -33,11 +33,16 @@ collect ──▶ score_all ──▶ scam_checks ──▶ retractions ──�
      scam levels *likely/suspicious*; alert-email listings expire after 21 days because they can't be
      re-checked).
    - `--mode all`: like digest but without the running list.
-6. **Email**, then stamp `emailed_at`. With `--no-email`, the HTML goes to `data/preview.html` and
-   nothing is stamped.
+6. **Notify** every active channel (`notify.py`: email, Discord, Slack, ntfy, Telegram), then stamp
+   `emailed_at` (it means "sent" on any channel). One channel failing doesn't block the others. A run
+   fails only if every channel fails, so nothing is wrongly marked as sent. With `--dry-run`
+   (`--no-email`), the email goes to `data/preview.html` and the chat version to
+   `data/preview.chat.txt`, and nothing is stamped.
 
-Each run appends a JSON summary (per-source found / new / details / deleted counts, emails sent) to
-the `runs` table and prints it, so `journalctl` shows source health at a glance.
+Each run appends a JSON summary (per-source found / new / details / deleted counts, number sent) to
+the `runs` table and prints it. **Source health** (`pipeline.source_health`) compares each source's
+latest collection with its own last 14 days. If the latest run failed, or found under 25% of its usual
+count (when it usually finds 20 or more), a warning goes into the daily digest and `radar doctor`.
 
 ## Data model
 
@@ -95,6 +100,8 @@ Delete `data/` to start over. Nothing else depends on it.
 | `sales.py` | sale-history refresh, street keys, shingle text index |
 | `verify.py` | address existence, property records, posting-removed checks |
 | `emailer.py` | HTML/text rendering, safety tips, SMTP |
+| `notify.py` | channel selection, chat formatting (Discord/Slack/Telegram/ntfy) and delivery |
+| `demo.py` | `radar demo`: made-up listings scored with the East Bay example, offline |
 | `addresses.py` | state-parameterized street-address regexes |
 | `http.py` | shared session, per-host rate limiting, retries |
 | `sources/*` | one module per source (see [sources.md](sources.md)) |
@@ -109,6 +116,8 @@ Delete `data/` to start over. Nothing else depends on it.
 | Realtor.com via HomeHarvest | rentals, property records, sale history | no |
 | Craigslist, Redfin, AppFolio/Buildium/Rentvine | listings | no |
 | Your SMTP / IMAP server | sending email, reading alert emails | your credentials |
+| Discord / Slack / Telegram / ntfy (optional) | chat and push notifications | your webhook URL or token |
+| Craigslist area list (`reference.craigslist.org`) | `radar init` suggests the nearest site | no |
 
 No personal data is sent to any of these beyond the addresses and coordinates being looked up.
 `http.TOOL_UA` deliberately contains no name or email address.

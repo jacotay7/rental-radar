@@ -33,6 +33,14 @@ def test_pets_component_dropped_without_pets():
     assert "pets" not in a["components"]
 
 
+def test_neighborhood_dropped_without_ratings():
+    cfg = make_cfg()
+    cfg["_areas"] = dict(cfg["_areas"], neighborhoods=[], city_defaults={})
+    _, a = score(listing(), cfg)
+    assert "neighborhood" not in a["components"]
+    assert not any("rated" in c for c in a["cons"])
+
+
 def test_shared_fenced_yard_is_not_private(cfg):
     pros, cons = [], []
     assert analyze.yard_score({}, "huge shared fenced yard", pros, cons) == 0.55
