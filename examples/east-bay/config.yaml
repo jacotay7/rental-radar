@@ -1,0 +1,110 @@
+# Worked example: a household with a large dog looking for a 3-bedroom house in the East Bay
+# (Oakland, Berkeley, Alameda, El Cerrito, Lamorinda...), commuting to downtown Oakland.
+# This is the configuration Rental Radar was originally built around. Copy it with
+#   radar init --example east-bay
+# then change `destination`, `email.to` and anything else that doesn't fit you.
+
+search:
+  label: "East Bay rentals"
+  state: "CA"
+  move_in: "2027-03-01"
+  bbox:                        # East Bay; excludes SF and the Peninsula
+    south: 37.68
+    north: 37.95
+    west: -122.34
+    east: -122.03
+  cities: ["Oakland", "Berkeley", "Albany", "El Cerrito", "Kensington", "Emeryville", "Alameda",
+           "Piedmont", "San Leandro", "Castro Valley", "Orinda", "Lafayette", "Moraga", "Walnut Creek",
+           "Richmond"]
+  alert_radius_km: 50
+
+destination:
+  label: "downtown Oakland"
+  address: "1 Frank H Ogawa Plaza, Oakland, CA 94612"   # Oakland City Hall
+  lat: 37.8053
+  lon: -122.2725
+
+budget:
+  target: 4000                 # full marks at/below 3,500, still good up to 4,000
+  great: 3500
+  max: 4200
+  hard_max: 4400               # 4,200-4,400 only if exceptional
+
+size:
+  min_beds: 2
+  ideal_beds: 3
+  below_ideal_penalty: 6       # 3BR strongly preferred over 2BR
+  min_sqft: 750
+  good_sqft: 1000
+
+pets:
+  dog: true
+  dog_weight_lb: 65            # listings with a lower weight limit are dealbreakers
+  cat: false
+
+commute:
+  max_minutes: 35
+  rush_hour_factor: 1.35
+  transit:
+    enabled: true
+    name: "BART"
+    avg_wait: 6
+    walk_km: 1.0
+    max_access_minutes: 12     # kiss-and-ride: someone drops you at the station
+    exits:
+      12TH: {name: "12th St Oakland", last_mile_minutes: 3, last_mile_mode: walk}
+
+scoring:
+  weights:
+    price: 13
+    commute: 13
+    pets: 17
+    neighborhood: 20
+    size: 14
+    home_type: 12              # house > duplex/townhouse > condo > apartment
+    yard: 11
+  email_threshold: 72
+  top_pick_threshold: 80
+  walkup_penalty: 8
+  avoid_areas: []              # e.g. ["Ghost Town"]
+  prefer_areas: []             # e.g. ["El Cerrito", "Albany"]
+
+scam:
+  too_cheap_rent: 1700         # any 2BR+ under this is flagged (East Bay market, 2026)
+  too_cheap_house_rent: 2600   # a 3BR+ house in a well-rated area under this is flagged
+
+email:
+  to: ["you@example.com"]
+  smtp_host: "smtp.gmail.com"
+  smtp_port: 465
+  safety_tips:
+    - "Look up the owner on the Alameda or Contra Costa County assessor site, and check any agent on the California DRE license lookup."
+    - "California (AB 12) caps most security deposits at one month's rent (two for small landlords); pet deposits count toward that."
+
+sources:
+  craigslist:
+    enabled: true
+    site: sfbay
+    postal: "94612"
+    distance_mi: 20
+  redfin:
+    enabled: true
+    market: sanfrancisco
+  realtor:
+    enabled: true
+  pm-portal:
+    enabled: true
+    file: portals.yaml         # 34 East Bay property managers
+  alerts:
+    enabled: false             # turn on after setting up saved searches (docs/saved-search-alerts.md)
+    imap_host: "imap.gmail.com"
+    lookback_days: 14
+    site_housing: {zillow: "house/townhouse"}     # the Zillow saved search excluded apartments/condos
+    extra_senders: {berkeleyparentsnetwork.org: bpn}   # local parents' newsletter with housing ads
+
+areas_file: areas.yaml
+
+schedule:
+  collect: "*-*-* 06..22:05:00"
+  digest: "*-*-* 07:30:00"
+  timezone: America/Los_Angeles

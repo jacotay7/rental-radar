@@ -1,0 +1,26 @@
+# Minimal example: a one-bedroom with a cat in Chicago, commuting to Union Station.
+# Only the essentials are set; everything else uses the defaults in rental_radar/config.py.
+# Without an areas.yaml every neighborhood gets the same score, so the ranking leans on price,
+# commute, size and pets. Add neighborhood ratings later (docs/regions.md).
+
+search:
+  label: "Chicago 1BR"
+  state: "IL"
+  bbox: {south: 41.78, north: 42.06, west: -87.80, east: -87.58}
+  cities: ["Chicago", "Evanston", "Oak Park"]
+
+destination:
+  label: "work"
+  address: "225 S Canal St, Chicago, IL 60606"
+  lat: 41.8786
+  lon: -87.6403
+
+budget: {target: 2000, max: 2200, hard_max: 2400}
+size: {min_beds: 1, ideal_beds: 1}
+pets: {cat: true}
+
+email:
+  to: ["you@example.com"]
+
+sources:
+  craigslist: {enabled: true, site: chicago, postal: "60606", distance_mi: 10}

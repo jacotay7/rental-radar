@@ -1,0 +1,32 @@
+[project]
+name = "rental-radar"
+version = "0.1.0"
+description = "Self-hosted rental search: collects listings from many sources, scores them against your priorities, screens out scams, and emails you the best ones."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+keywords = ["rentals", "apartments", "housing", "real-estate", "scam-detection", "craigslist", "redfin"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Topic :: Utilities",
+]
+dependencies = ["requests>=2.31", "pyyaml>=6.0", "homeharvest>=0.8"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+radar = "rental_radar.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["rental_radar"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

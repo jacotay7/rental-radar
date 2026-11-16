@@ -1,0 +1,229 @@
+# East Bay (Oakland / Berkeley / Alameda / Lamorinda) reference data for Rental Radar.
+#
+# Neighborhood scores (1-10) are one household's judgment blend of safety, family-friendliness,
+# walkability/amenities and day-to-day livability, made in late 2026. They are approximate and
+# opinionated: re-rate them for your own priorities, and verify specific blocks with crime maps
+# and a video walk-through. Commute is scored per listing, so notes here don't mention it.
+
+default_score: 5.5
+
+city_defaults:
+  oakland: 6.0
+  berkeley: 7.5
+  albany: 9.0
+  el cerrito: 9.0
+  emeryville: 6.5
+  alameda: 8.0
+  piedmont: 9.5
+  san leandro: 6.5
+  castro valley: 7.5
+  richmond: 5.0
+  orinda: 9.0
+  lafayette: 9.0
+  moraga: 8.5
+  walnut creek: 8.0
+  kensington: 9.0
+  pleasant hill: 7.5
+  hayward: 5.5
+  ashland: 4.5
+  cherryland: 4.5
+  san lorenzo: 6.0
+  concord: 6.0
+  el sobrante: 5.5
+
+neighborhoods:
+  - {name: "Rockridge", lat: 37.844, lon: -122.251, radius_km: 1.0, score: 9.0,
+     pros: "Very walkable College Ave shops, Rockridge BART, popular with families, Hardy Dog Park",
+     cons: "Among Oakland's priciest; Hwy 24 noise near freeway"}
+  - {name: "Temescal", lat: 37.835, lon: -122.263, radius_km: 0.9, score: 8.0,
+     pros: "Walkable restaurants/shops, farmers market, close to MacArthur BART",
+     cons: "Car break-ins common; busier streets"}
+  - {name: "Piedmont Ave", lat: 37.826, lon: -122.25, radius_km: 0.7, score: 8.0,
+     pros: "Charming walkable strip, Mountain View Cemetery for long dog walks",
+     cons: "Mostly older apartments; parking tight"}
+  - {name: "Grand Lake / Lakeshore", lat: 37.812, lon: -122.247, radius_km: 0.8, score: 7.5,
+     pros: "Lake Merritt loop, Saturday farmers market, walkable",
+     cons: "Some street crime; apartments more common than houses"}
+  - {name: "Adams Point", lat: 37.815, lon: -122.257, radius_km: 0.6, score: 7.0,
+     pros: "Steps from Lake Merritt and Children's Fairyland",
+     cons: "Dense apartment blocks, few yards, parking tight"}
+  - {name: "Crocker Highlands / Trestle Glen", lat: 37.818, lon: -122.233, radius_km: 0.9, score: 8.5,
+     pros: "Quiet tree-lined family neighborhood near Lakeshore shops",
+     cons: "Few rentals; hilly streets"}
+  - {name: "Piedmont (city)", lat: 37.824, lon: -122.229, radius_km: 1.3, score: 9.5,
+     pros: "Very safe, top schools, own police dept",
+     cons: "Very expensive; rentals rare"}
+  - {name: "Glenview", lat: 37.81, lon: -122.22, radius_km: 0.8, score: 8.0,
+     pros: "Family-friendly, Park Blvd cafes, near Dimond Park",
+     cons: "Hilly; Hwy 580 noise on edges"}
+  - {name: "Dimond", lat: 37.801, lon: -122.213, radius_km: 0.7, score: 7.5,
+     pros: "Dimond Park + Sausal Creek trails (great for dogs), library, shops",
+     cons: "MacArthur Blvd corridor can be rough in spots"}
+  - {name: "Oakmore / Lincoln Highlands", lat: 37.815, lon: -122.2, radius_km: 0.9, score: 8.0,
+     pros: "Quiet hills, close to Joaquin Miller Park",
+     cons: "Hilly, car-dependent, wildfire-zone insurance/evac considerations"}
+  - {name: "Montclair", lat: 37.828, lon: -122.211, radius_km: 1.2, score: 8.5,
+     pros: "Village shops, Montclair Park, near Redwood Regional trails, family-oriented",
+     cons: "Car-dependent hills; high wildfire zone"}
+  - {name: "Upper Rockridge / Hiller Highlands", lat: 37.852, lon: -122.23, radius_km: 1.0, score: 8.0,
+     pros: "Quiet hills, near trails",
+     cons: "Car-dependent; high wildfire zone"}
+  - {name: "Redwood Heights", lat: 37.8, lon: -122.19, radius_km: 0.9, score: 7.5,
+     pros: "Family neighborhood near Redwood Regional Park",
+     cons: "Car-dependent"}
+  - {name: "Laurel", lat: 37.792, lon: -122.204, radius_km: 0.7, score: 6.5,
+     pros: "Affordable, MacArthur Blvd shops",
+     cons: "Mixed safety"}
+  - {name: "Maxwell Park / Millsmont", lat: 37.782, lon: -122.193, radius_km: 0.9, score: 6.0,
+     pros: "More affordable houses with yards",
+     cons: "Mixed safety; car-dependent"}
+  - {name: "Longfellow", lat: 37.831, lon: -122.277, radius_km: 0.6, score: 6.0,
+     pros: "Close to MacArthur BART, central",
+     cons: "Higher property crime; freeway noise"}
+  - {name: "Golden Gate / Bushrod", lat: 37.845, lon: -122.275, radius_km: 0.8, score: 6.5,
+     pros: "Near Berkeley border, some houses with yards",
+     cons: "Mixed safety block to block"}
+  - {name: "Hoover-Foster / Ghost Town", lat: 37.822, lon: -122.283, radius_km: 0.6, score: 4.5,
+     pros: "Central, cheaper",
+     cons: "Higher crime rates; under freeways"}
+  - {name: "West Oakland", lat: 37.811, lon: -122.292, radius_km: 1.2, score: 5.0,
+     pros: "Central, bikeable to downtown and BART; Victorians with yards",
+     cons: "Higher crime, industrial pockets, freeway/port air quality"}
+  - {name: "Uptown / Downtown Oakland", lat: 37.807, lon: -122.27, radius_km: 0.9, score: 5.5,
+     pros: "Dense, restaurants, multiple BART stations",
+     cons: "Mostly large apartment buildings; street crime/property crime; few yards"}
+  - {name: "Jack London Square", lat: 37.796, lon: -122.278, radius_km: 0.7, score: 6.0,
+     pros: "Waterfront, ferry, newer buildings",
+     cons: "Train horns, nightlife, few yards"}
+  - {name: "Eastlake / Clinton", lat: 37.796, lon: -122.25, radius_km: 0.8, score: 5.5,
+     pros: "Affordable, near lake",
+     cons: "Mixed safety"}
+  - {name: "Brooklyn Basin", lat: 37.789, lon: -122.259, radius_km: 0.6, score: 6.5,
+     pros: "New waterfront buildings, parks",
+     cons: "Isolated by freeway/estuary; mostly big complexes"}
+  - {name: "Fruitvale", lat: 37.775, lon: -122.224, radius_km: 1.2, score: 4.5,
+     pros: "Fruitvale BART, food",
+     cons: "Higher crime rates"}
+  - {name: "East Oakland flats", lat: 37.755, lon: -122.185, radius_km: 2.0, score: 3.5,
+     pros: "Cheaper",
+     cons: "Highest violent-crime areas of Oakland"}
+  - {name: "Emeryville", lat: 37.836, lon: -122.29, radius_km: 1.0, score: 6.5,
+     pros: "Central, shopping, free Emery Go-Round shuttle",
+     cons: "Mostly apartment complexes; property crime; few yards"}
+  - {name: "Elmwood (Berkeley)", lat: 37.858, lon: -122.252, radius_km: 0.8, score: 9.0,
+     pros: "Walkable College Ave, safe, families",
+     cons: "Expensive; competitive"}
+  - {name: "Claremont (Berkeley/Oakland)", lat: 37.861, lon: -122.24, radius_km: 0.9, score: 9.0,
+     pros: "Quiet, beautiful, near trails",
+     cons: "Expensive; hilly; wildfire zone uphill"}
+  - {name: "North Berkeley", lat: 37.88, lon: -122.27, radius_km: 0.9, score: 8.5,
+     pros: "Gourmet Ghetto, Ohlone Dog Park, North Berkeley BART",
+     cons: "Older housing stock; pricey"}
+  - {name: "Thousand Oaks / Westbrae", lat: 37.89, lon: -122.28, radius_km: 0.9, score: 8.5,
+     pros: "Solano Ave shops, family-friendly, close to Point Isabel dog park",
+     cons: "Pricey"}
+  - {name: "Berkeley Hills", lat: 37.885, lon: -122.252, radius_km: 1.2, score: 8.0,
+     pros: "Quiet, views, Tilden Park trails",
+     cons: "Car-dependent; high wildfire zone"}
+  - {name: "South Berkeley / Lorin", lat: 37.851, lon: -122.272, radius_km: 0.8, score: 6.5,
+     pros: "Ashby BART, Berkeley Bowl nearby",
+     cons: "Mixed safety block to block"}
+  - {name: "Downtown / Southside Berkeley", lat: 37.866, lon: -122.26, radius_km: 0.8, score: 5.5,
+     pros: "Downtown Berkeley BART, everything walkable",
+     cons: "Student-heavy, noisy, street issues"}
+  - {name: "West Berkeley", lat: 37.862, lon: -122.293, radius_km: 1.0, score: 6.5,
+     pros: "4th St shops, Aquatic Park, Cesar Chavez Park off-leash area",
+     cons: "Industrial pockets; train noise near tracks"}
+  - {name: "Albany", lat: 37.887, lon: -122.298, radius_km: 1.2, score: 9.0,
+     pros: "Small-town feel, excellent schools, very close to Point Isabel (huge off-leash dog park)",
+     cons: "Small city, limited inventory; I-80 noise on west edge"}
+  - {name: "Kensington", lat: 37.909, lon: -122.28, radius_km: 0.9, score: 9.0,
+     pros: "Quiet hills, safe",
+     cons: "Car-dependent; wildfire zone"}
+  - {name: "El Cerrito", lat: 37.915, lon: -122.305, radius_km: 1.8, score: 8.5,
+     pros: "Family-friendly, two BART stations, near Point Isabel, more yard for the money",
+     cons: ""}
+  - {name: "Richmond Annex", lat: 37.904, lon: -122.318, radius_km: 0.7, score: 6.5,
+     pros: "Next to Point Isabel dog park, more affordable",
+     cons: "Mixed safety"}
+  - {name: "Point Richmond", lat: 37.925, lon: -122.385, radius_km: 1.0, score: 6.5,
+     pros: "Quaint village, waterfront",
+     cons: "Refinery nearby"}
+  - {name: "Richmond (central)", lat: 37.935, lon: -122.345, radius_km: 1.8, score: 4.0,
+     pros: "Cheapest",
+     cons: "Higher crime rates"}
+  - {name: "Alameda West End", lat: 37.775, lon: -122.29, radius_km: 1.3, score: 7.0,
+     pros: "Safe island town, beaches, ferry",
+     cons: "No BART; tube/bridges bottleneck at rush"}
+  - {name: "Alameda (Central/East End)", lat: 37.764, lon: -122.25, radius_km: 1.6, score: 8.5,
+     pros: "Very family- and dog-friendly, safe, Park St shops, houses with yards",
+     cons: "No BART; tube/bridges bottleneck at rush"}
+  - {name: "Bay Farm Island", lat: 37.735, lon: -122.245, radius_km: 1.2, score: 8.5,
+     pros: "Quiet suburban, shoreline trails",
+     cons: "Longer drive; no BART"}
+  - {name: "San Leandro (Estudillo / Broadmoor)", lat: 37.721, lon: -122.158, radius_km: 1.2, score: 6.5,
+     pros: "More space for the money, San Leandro BART",
+     cons: "Mixed safety"}
+  - {name: "San Leandro hills (Bay-O-Vista)", lat: 37.725, lon: -122.128, radius_km: 1.0, score: 7.5,
+     pros: "Quiet, near Lake Chabot",
+     cons: "Car-dependent"}
+  - {name: "San Lorenzo", lat: 37.681, lon: -122.127, radius_km: 1.6, score: 6.5,
+     pros: "Quiet 1950s family suburb, single-family homes with yards, good value",
+     cons: "BART (Bay Fair) needs a drop-off"}
+  - {name: "Castro Valley", lat: 37.695, lon: -122.085, radius_km: 2.0, score: 7.5,
+     pros: "Suburban, good schools, Lake Chabot dog trails",
+     cons: "Farther from the urban core"}
+  - {name: "Orinda", lat: 37.878, lon: -122.18, radius_km: 2.0, score: 9.0,
+     pros: "Top schools, safe, Orinda BART, trails",
+     cons: "Car-dependent; wildfire zone; Caldecott tunnel traffic"}
+  - {name: "Lafayette", lat: 37.886, lon: -122.118, radius_km: 2.0, score: 9.0,
+     pros: "Top schools, Lafayette Reservoir, downtown, BART",
+     cons: "Expensive; hotter summers"}
+  - {name: "Moraga", lat: 37.835, lon: -122.13, radius_km: 2.0, score: 8.5,
+     pros: "Very safe, quiet, family-oriented",
+     cons: "No BART; car-dependent"}
+  - {name: "Walnut Creek", lat: 37.906, lon: -122.065, radius_km: 2.5, score: 8.0,
+     pros: "Lively downtown, Heather Farm dog park, BART",
+     cons: "Hot summers; farther from the urban core"}
+
+# BART stations. rides = approximate ride minutes to each exit station listed under
+# commute.transit.exits in config.yaml (here: 12th St Oakland City Center, for a downtown destination).
+transit_stations:
+  - {code: RICH, name: "Richmond", lat: 37.937, lon: -122.3533, rides: {12TH: 22}}
+  - {code: DELN, name: "El Cerrito del Norte", lat: 37.9252, lon: -122.3168, rides: {12TH: 19}}
+  - {code: PLZA, name: "El Cerrito Plaza", lat: 37.9026, lon: -122.299, rides: {12TH: 16}}
+  - {code: NBRK, name: "North Berkeley", lat: 37.874, lon: -122.2834, rides: {12TH: 13}}
+  - {code: DBRK, name: "Downtown Berkeley", lat: 37.87, lon: -122.2681, rides: {12TH: 10}}
+  - {code: ASHB, name: "Ashby", lat: 37.853, lon: -122.27, rides: {12TH: 7}}
+  - {code: MCAR, name: "MacArthur", lat: 37.829, lon: -122.2671, rides: {12TH: 4}}
+  - {code: ROCK, name: "Rockridge", lat: 37.8447, lon: -122.2512, rides: {12TH: 7}}
+  - {code: ORIN, name: "Orinda", lat: 37.8784, lon: -122.1838, rides: {12TH: 13}}
+  - {code: LAFY, name: "Lafayette", lat: 37.8933, lon: -122.1246, rides: {12TH: 17}}
+  - {code: WCRK, name: "Walnut Creek", lat: 37.9056, lon: -122.0675, rides: {12TH: 21}}
+  - {code: 19TH, name: "19th St Oakland", lat: 37.8083, lon: -122.2687, rides: {12TH: 2}}
+  - {code: 12TH, name: "12th St Oakland", lat: 37.8036, lon: -122.2716, rides: {}}
+  - {code: LAKE, name: "Lake Merritt", lat: 37.7974, lon: -122.2652, rides: {12TH: 3}}
+  - {code: FTVL, name: "Fruitvale", lat: 37.7749, lon: -122.2242, rides: {12TH: 7}}
+  - {code: COLS, name: "Coliseum", lat: 37.7536, lon: -122.1969, rides: {12TH: 11}}
+  - {code: SANL, name: "San Leandro", lat: 37.7219, lon: -122.1609, rides: {12TH: 15}}
+  - {code: BAYF, name: "Bay Fair", lat: 37.6969, lon: -122.1265, rides: {12TH: 18}}
+  - {code: CAST, name: "Castro Valley", lat: 37.6908, lon: -122.0756, rides: {12TH: 23}}
+  - {code: WOAK, name: "West Oakland", lat: 37.8049, lon: -122.2951, rides: {12TH: 3}}
+
+# Off-leash / very dog-friendly parks and trails
+dog_parks:
+  - {name: "Point Isabel (huge off-leash shoreline park)", lat: 37.9, lon: -122.322}
+  - {name: "Cesar Chavez Park off-leash area", lat: 37.874, lon: -122.32}
+  - {name: "Ohlone Dog Park", lat: 37.873, lon: -122.275}
+  - {name: "Hardy Dog Park", lat: 37.842, lon: -122.247}
+  - {name: "Grove-Shafter Dog Park", lat: 37.834, lon: -122.265}
+  - {name: "Joaquin Miller Park trails", lat: 37.817, lon: -122.188}
+  - {name: "Redwood Regional Park (off-leash trails)", lat: 37.81, lon: -122.163}
+  - {name: "Dimond Park / Sausal Creek", lat: 37.806, lon: -122.212}
+  - {name: "Piedmont Park dog run", lat: 37.823, lon: -122.23}
+  - {name: "Lake Merritt loop", lat: 37.803, lon: -122.258}
+  - {name: "Washington Park dog park (Alameda)", lat: 37.76, lon: -122.266}
+  - {name: "Tilden Park / Nimitz Way", lat: 37.9, lon: -122.245}
+  - {name: "Lafayette Reservoir", lat: 37.885, lon: -122.14}
+  - {name: "Heather Farm dog park", lat: 37.927, lon: -122.052}
+  - {name: "Lake Chabot", lat: 37.715, lon: -122.11}

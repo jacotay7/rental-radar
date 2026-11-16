@@ -1,0 +1,43 @@
+# East Bay property-manager vacancy portals (subdomains verified October 2026; re-check occasionally).
+# platform: appfolio -> https://<sub>.appfolio.com/listings
+#           buildium -> https://<sub>.managebuilding.com/Resident/public/rentals
+#           rentvine -> https://<sub>.rentvine.com/api/public/listings
+# Listings outside the search area are dropped automatically, so statewide managers are fine.
+# Careful adding guessed subdomains: several common names belong to companies in other states.
+portals:
+  # Strong for houses
+  - {name: Woodminster Real Estate, platform: appfolio, sub: woodminsterrealty}
+  - {name: Cerda-Zein Real Estate, platform: appfolio, sub: cerdazein}
+  - {name: Maisel Property Management, platform: appfolio, sub: maiselpm}
+  - {name: SLPM Property Management, platform: appfolio, sub: slpm2}
+  - {name: All East Bay Properties, platform: appfolio, sub: alleastbayproperties}
+  - {name: The Cal Agents, platform: buildium, sub: thecalagents}
+  - {name: K&S Company, platform: appfolio, sub: kands}
+  - {name: MSB Property Management, platform: appfolio, sub: msbpropertymanagement}
+  - {name: Real Property Management Pacific, platform: appfolio, sub: rpmca114}
+  - {name: CES Premier Real Estate, platform: appfolio, sub: premierproperty}
+  - {name: Premium Properties, platform: appfolio, sub: premiumprop}
+  - {name: Stokley Properties, platform: appfolio, sub: stokleyproperties}
+  - {name: Irvin Real Estate, platform: appfolio, sub: irvin}
+  - {name: Hartz Property Management, platform: appfolio, sub: hartz}
+  - {name: PMI Contra Costa, platform: rentvine, sub: pmicontracosta}
+  - {name: Stowers Real Estate, platform: rentvine, sub: stowersrealestate}
+  # Mixed / mostly apartments (still worth polling; they're cheap)
+  - {name: The Lapham Company, platform: appfolio, sub: laphamcompany}
+  - {name: Beacon Properties, platform: appfolio, sub: beaconprop}
+  - {name: Selborne Properties, platform: appfolio, sub: selborne}
+  - {name: Oak Tree Property Group, platform: appfolio, sub: oaktreepropertygroup}
+  - {name: Prime Property Management, platform: appfolio, sub: primepropertypm}
+  - {name: Advent Properties, platform: appfolio, sub: adventproperties}
+  - {name: Korman & Ng, platform: appfolio, sub: kormanandng}
+  - {name: Bay Cities Property Management, platform: appfolio, sub: baycitiespm}
+  - {name: Wellington Property Co, platform: appfolio, sub: wellingtonprop}
+  - {name: Bay Property Group, platform: appfolio, sub: baypropertygroup}
+  - {name: California Pacific Realty, platform: appfolio, sub: californiapacific}
+  - {name: ACL Property Management, platform: appfolio, sub: aclrealestate}
+  - {name: Utopia Management, platform: appfolio, sub: utopiamanagement}
+  - {name: Windsor Pacific PM, platform: appfolio, sub: windsorpacificpm}
+  - {name: Swenson Property Mgmt, platform: appfolio, sub: swensoninvestors}
+  - {name: Marquardt PM, platform: buildium, sub: mpmoakland}
+  - {name: Astound Property Management, platform: buildium, sub: astoundrealestate}
+  - {name: Extramile Property Management, platform: buildium, sub: extramilepminc}

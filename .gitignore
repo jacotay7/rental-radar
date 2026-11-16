@@ -1,0 +1,15 @@
+# Secrets and personal search data never belong in the repo
+.env
+data/
+/config.yaml
+/areas.yaml
+/portals.yaml
+searches/
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+dist/
+build/
